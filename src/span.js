@@ -2,17 +2,13 @@
 // both inserted and deleted ranges internally, but only the inserted
 // ranges are returned as spans.
 export class Span {
-  constructor(from, to, changes) {
+  constructor(from, to, data) {
     // :: number
     this.from = from
     // :: number
     this.to = to
-    // :: [Change}
-    this.changes = changes
-  }
-
-  get author() {
-    return this.changes[0].author
+    // :: any
+    this.data = data
   }
 }
 
@@ -29,41 +25,40 @@ export function join(setA, setB) {
 // spans with the same author, it is joined with them. When it
 // overlaps with spans with different authors, it overwrites those
 // parts.
-export function addSpan(spans, from, to, change) {
-  let pos = 0, next
-  for (; pos < spans.length; pos++) {
-    next = spans[pos]
-    if (next.author == change.author) {
-      if (next.to >= from) break
-    } else if (next.to > from) { // Different author, not before
-      if (next.from < from) { // Sticks out to the left (loop below will handle right side)
-        let left = new Span(next.from, from, next.changes)
-        if (next.to > to) spans.splice(pos++, 0, left)
-        else spans[pos++] = left
-      }
-      break
-    }
-  }
-
-  let changes = [change]
-  while (next = spans[pos]) {
-    if (next.author == change.author) {
-      if (next.from > to) break
-      from = Math.min(from, next.from)
-      to = Math.max(to, next.to)
-      changes = join(next.changes, changes)
-      spans.splice(pos, 1)
-    } else {
-      if (next.from >= to) break
-      if (next.to > to) {
-        spans[pos] = new Span(to, next.to, next.changes)
-        break
-      } else {
-        spans.splice(pos, 1)
-      }
-    }
-  }
-
-  spans.splice(pos, 0, new Span(from, to, changes))
-  return spans
+export function addSpan(spans, from, to, data, compare, combine) {
+  return addSpanInner(spans, from, to, data, compare, combine, true)
 }
+
+export function addSpanBelow(spans, from, to, data, compare, combine) {
+  return addSpanInner(spans, from, to, data, compare, combine, false)
+}
+
+export function addSpanInner(spans, from, to, data, compare, combine, above) {
+  let result = [], insert = 0
+
+  for (let i = 0; i < spans.length; i++) {
+    let span = spans[i]
+    if (span.from > to || span.to < from) {
+      result.push(span)
+      if (span.to < from) insert = result.length
+    } else if (compare(span.data, data)) {
+      from = Math.min(from, span.from)
+      to = Math.max(to, span.to)
+      data = combine(span.data, data)
+      insert = result.length
+    } else if (above) {
+      if (span.from < from) result.push(span.to == from ? span : new Span(span.from, from, span.data))
+      insert = result.length
+      if (span.to > to) result.push(span.from == to ? span : new Span(to, span.to, span.data))
+    } else {
+      if (from < span.from) result.push(new Span(from, span.from, data))
+      result.push(span)
+      insert = result.length
+      if (to > span.to) from = span.to
+      else to = -1
+    }
+  }
+  if (to > -1) result.splice(insert, 0, new Span(from, to, data))
+  return result
+}
+
