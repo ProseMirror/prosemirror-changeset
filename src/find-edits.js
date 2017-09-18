@@ -1,12 +1,125 @@
 import {findDiffStart, findDiffEnd} from "./diff"
 import {Span, addSpan, addSpanBelow} from "./span"
+export {Span}
 
 // ::- Used to represent a deletion.
-class Deletion {
-  constructor(pos, slice, data) {
+class DeletedSpan extends Span {
+  constructor(from, to, data, pos, slice) {
+    super(from, to, data)
     this.pos = pos
     this.slice = slice
-    this.data = data
+  }
+}
+
+class EditSetBase {
+  constructor(doc, compare, combine) {
+    this.doc = doc
+    this.compare = compare
+    this.combine = combine
+  }
+}
+
+export class EditSet {
+  constructor(base, maps, inserted, deleted) {
+    this.base = base
+    this.maps = maps
+    this.inserted = inserted
+    this.deleted = deleted
+  }
+
+  addSteps(newDoc, steps, data) {
+    if (steps.length == 0) return this
+
+    let maps = this.maps.concat(steps.map(s => s.getMap()))
+    let inserted = [], deleted = this.deleted.concat()
+
+    // Map existing inserted spans forward
+    for (let i = 0; i < this.inserted.length; i++) {
+      let span = this.inserted[i], {from, to} = span
+      for (let j = this.maps.length; j < maps.length; j++) {
+        from = maps[j].map(from, 1)
+        to = maps[j].map(to, -1)
+      }
+      if (to > from) inserted.push(from != span.from || to != span.to ? new Span(from, to, span.data) : span)
+    }
+
+    // Add spans for new steps.
+    let newBoundaries = [] // Used to make sure new insertions are checked for merging
+    for (let i = this.maps.length; i < maps.length; i++) {
+      // Map deletions backward to the original document, and add them
+      // to `deleted`
+      maps[i].forEach((fromA, toA, fromB, toB) => {
+        for (let j = i - 1; j >= 0; j--) {
+          let inv = maps[j].invert() // FIXME cache? store? use undocumented method?
+          fromA = inv.map(fromA, 1)
+          toA = inv.map(toA, -1)
+        }
+        if (toA > fromA)
+          addSpanBelow(deleted, fromA, toA, data[i], this.base.compare, this.base.combine)
+
+        // Map insertions forward to the current one, and add them to
+        // `inserted`.
+        for (let j = i + 1; j < maps.length; j++) {
+          fromB = maps[j].map(fromB, 1)
+          toB = maps[j].map(toB, -1)
+        }
+        if (toB > fromB) {
+          newBoundaries.push(fromB, toB)
+          addSpan(inserted, fromB, toB, data[i], this.base.compare, this.base.combine)
+        }
+      })
+    }
+
+    // Restore the pos and slice on deleted spans that have been
+    // updated, and merge deleted slices with adjacent insertions when
+    // possible.
+    for (let i = 0, j = 0; i < deleted.length; i++) {
+      let span = deleted[i], merge = false
+      if (!span.slice) {
+        let pos = span.from
+        for (let k = 0; k < maps.length; k++) pos = maps[k].map(pos, -1)
+        deleted[i] = span = new DeletedSpan(span.from, span.to, span.data, pos,
+                                            this.base.doc.slice(span.from, span.to))
+        merge = true
+      } else {
+        merge = span.pos.indexOf(newBoundaries) > -1
+      }
+
+      // Check for adjacent insertions/deletions with compatible data
+      // that fully or partially undo each other, and shrink or delete
+      // them to clean up the output.
+      if (merge) for (; j < inserted.length; j++) {
+        let next = inserted[j]
+        if (next.from > span.pos) break
+        if (next.from < span.pos || !this.base.compare(span.data, next.data)) continue
+
+        let slice = newDoc.slice(next.from, next.to)
+        let sameStart = sliceSameTo(span.slice, slice)
+        if (sameStart > 0) {
+          if (sameStart >= next.to - next.from) inserted.splice(j--, 1)
+          else inserted[j] = next = new Span(next.from + sameStart, next.to, next.data)
+          if (sameStart >= span.to - span.from) { deleted.splice(i--, 1); break }
+          deleted[i] = span = new DeletedSpan(span.from + sameStart, span.to, span.data, span.pos + sameStart,
+                                              this.base.doc.slice(span.from + sameStart, span.to))
+          slice = newDoc.slice(next.from, next.to)
+        }
+        let sameEnd = sliceSameFrom(span.slice, slice)
+        if (sameEnd > 0) {
+          if (sameEnd >= next.to - next.from) inserted.splice(j--, 1)
+          else inserted[j] = new Span(next.from, next.to - sameEnd, next.data)
+          if (sameEnd >= span.to - span.from) { deleted.splice(i--, 1); break }
+          deleted[i] = span = new DeletedSpan(span.from, span.to - sameEnd, span.data, span.pos,
+                                              this.base.doc.slice(span.from, span.to - sameEnd))
+        }
+      }
+    }
+    // FIXME use reduceToContent somewhere?
+
+    return new EditSet(this.base, maps, inserted, deleted)
+  }
+
+  static create(doc, compare=(a, b) => a == b, combine=a=>a) {
+    return new EditSet(new EditSetBase(doc, compare, combine), [], [], [])
   }
 }
 
@@ -32,68 +145,8 @@ class Deletion {
 // deleted range, and the positions of those ranges are mapped forward
 // to positions in the resulting document.
 export function findEdits(oldDoc, newDoc, steps, data, compare, combine) {
-  let maps = steps.map(s => s.getMap())
-
-  // Map deletions to the original document, insertions to the current
-  // document
-  let atStart = [], atEnd = []
-  for (let i = 0; i < maps.length; i++) {
-    maps[i].forEach((fromA, toA, fromB, toB) => {
-      for (let j = i - 1; j >= 0; j--) {
-        let inv = maps[j].invert()
-        fromA = inv.map(fromA, 1)
-        toA = inv.map(toA, -1)
-      }
-      if (toA > fromA)
-        addSpanBelow(atStart, fromA, toA, data[i], compare, combine)
-      for (let j = i + 1; j < maps.length; j++) {
-        fromB = maps[j].map(fromB, 1)
-        toB = maps[j].map(toB, -1)
-      }
-      if (toB > fromB)
-        addSpan(atEnd, fromB, toB, data[i], compare, combine)
-    })
-  }
-
-  let deleted = []
-  gather: for (let i = 0; i < atStart.length; i++) {
-    let {from, to, data} = atStart[i], pos = from
-    // Map the position of this deletion to a position in the current document
-    for (let j = 0; j < maps.length; j++) pos = maps[j].map(pos, -1)
-
-    let slice = oldDoc.slice(from, to)
-    // Check for adjacent insertions/deletions whose data matches that
-    // fully or partially undo each other, and shrink or delete them
-    // to clean up the output.
-    for (let j = 0; j < atEnd.length; j++) {
-      let other = atEnd[j]
-      if (pos != other.from || !compare(other.data, data)) continue
-      let otherSlice = newDoc.slice(other.from, other.to)
-      let sameStart = sliceSameTo(slice, otherSlice)
-      if (sameStart > 0) {
-        if (sameStart >= other.to - other.from) atEnd.splice(j--, 1)
-        else atEnd[j] = other = new Span(other.from + sameStart, other.to, other.data)
-        if (sameStart >= to - from) continue gather
-        from += sameStart
-        pos += sameStart
-        slice = oldDoc.slice(from, to)
-        otherSlice = newDoc.slice(other.from, other.to)
-      }
-      let sameEnd = sliceSameFrom(slice, otherSlice)
-      if (sameEnd > 0) {
-        if (sameEnd >= other.to - other.from) atEnd.splice(j--, 1)
-        else atEnd[j] = new Span(other.from, other.to - sameEnd, other.data)
-        if (sameEnd >= to - from) continue gather
-        to -= sameEnd
-        slice = oldDoc.slice(from, to)
-      }
-    }
-
-    slice = reduceToContent(slice)
-    if (slice.size) deleted.push(new Deletion(pos, slice, data))
-  }
-
-  return {deleted, inserted: atEnd}
+  let set = EditSet.create(oldDoc, compare, combine).addSteps(newDoc, steps, data)
+  return set
 }
 
 function sliceSameTo(a, b) {
