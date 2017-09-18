@@ -1,6 +1,6 @@
-// ::- A document range with an author assigned to it. Used to track
-// both inserted and deleted ranges internally, but only the inserted
-// ranges are returned as spans.
+// ::- A document range with metadata associated with it. Used to
+// track both inserted and deleted ranges, though deletions are
+// represented with a subclass.
 export class Span {
   constructor(from, to, data) {
     // :: number

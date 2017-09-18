@@ -3,10 +3,12 @@ import {Span, addSpan, addSpanBelow} from "./span"
 export {Span}
 
 // ::- Used to represent a deletion.
-class DeletedSpan extends Span {
+export class DeletedSpan extends Span {
   constructor(from, to, data, pos, slice) {
     super(from, to, data)
+    // :: number The position of the deletion in the current document.
     this.pos = pos
+    // :: Slice The deleted content.
     this.slice = slice
   }
 }
@@ -19,15 +21,44 @@ class EditSetBase {
   }
 }
 
+// ::- An edit set tracks the changes to a document from a given point
+// in the past. It condenses a number of steps down to a flat sequence
+// of insertions and deletions, and merges adjacent
+// insertions/deletions that (partially) undo each other.
 export class EditSet {
   constructor(base, maps, inserted, deleted) {
     this.base = base
     this.maps = maps
+    // :: [Span]
+    // Inserted regions. Their `from`/`to` point into the current
+    // document.
     this.inserted = inserted
+    // :: [DeletedSpan]
+    // Deleted ranges. Their `from`/`to` point into the old document,
+    // and their `pos` into the new.
     this.deleted = deleted
   }
 
+  // :: (Node, [Step], [any]) → EditSet
+  // Computes a new edit set by adding the given steps and metadata to
+  // the current set. Will not mutate the old set.
   addSteps(newDoc, steps, data) {
+    // This works by inspecting the position maps for the changes,
+    // which indicate what parts of the document were replaced by new
+    // content, and the size of that new content. It maps all replaced
+    // ranges backwards, to the start of the range of changes, and all
+    // inserted ranges forward, to the end.
+    //
+    // The replaced ranges are added so that earlier deletions take
+    // precedence (the first person to delete something is the one
+    // responsible for its deletion), and the inserted ranges are
+    // added so that later ones take precedence (the last person to
+    // insert somewhere is responsible for the text there).
+    //
+    // The original document is then used to get a slice for each
+    // deleted range, and the positions of those ranges are mapped
+    // forward to positions in the resulting document.
+
     if (steps.length == 0) return this
 
     let maps = this.maps.concat(steps.map(s => s.getMap()))
@@ -50,7 +81,7 @@ export class EditSet {
       // to `deleted`
       maps[i].forEach((fromA, toA, fromB, toB) => {
         for (let j = i - 1; j >= 0; j--) {
-          let inv = maps[j].invert() // FIXME cache? store? use undocumented method?
+          let inv = maps[j].invert()
           fromA = inv.map(fromA, 1)
           toA = inv.map(toA, -1)
         }
@@ -113,7 +144,6 @@ export class EditSet {
         }
       }
     }
-    // FIXME use reduceToContent somewhere?
 
     return new EditSet(this.base, maps, inserted, deleted)
   }
@@ -121,32 +151,6 @@ export class EditSet {
   static create(doc, compare=(a, b) => a == b, combine=a=>a) {
     return new EditSet(new EditSetBase(doc, compare, combine), [], [], [])
   }
-}
-
-// :: (Node, Node, [Step], [any]) → {deleted: [Deletion], inserted: [Span]}
-//
-// When given a document (before the changes) and a set of changes,
-// this will determine the changes and insertions (relative to the
-// document _after_ the changes) made by those changes.
-//
-// It works by inspecting the position maps for the changes, which
-// indicate what parts of the document were replaced by new content,
-// and the size of that new content. It maps all replaced ranges
-// backwards, to the start of the range of changes, and all inserted
-// ranges forward, to the end.
-//
-// The replaced ranges are added back-to-front, so that earlier
-// deletions take precedence (the first person to delete something is
-// the one responsible for its deletion), and the inserted ranges are
-// added front-to-back (the last person to insert somewhere is
-// responsible for the text there).
-//
-// The original document is then used to get text content for each
-// deleted range, and the positions of those ranges are mapped forward
-// to positions in the resulting document.
-export function findEdits(oldDoc, newDoc, steps, data, compare, combine) {
-  let set = EditSet.create(oldDoc, compare, combine).addSteps(newDoc, steps, data)
-  return set
 }
 
 function sliceSameTo(a, b) {
@@ -163,14 +167,4 @@ function sliceSameFrom(a, b) {
   for (; openB > openA; openB--) fragB = fragB.lastChild.content
   let end = findDiffEnd(fragA, fragB, fragA.size, fragB.size)
   return Math.min(a.size, b.size, fragA.size - (end ? end.a : 0) - openA)
-}
-
-// Cut off unmatched opening/closing tokens from the sides of a slice,
-// leaving only full nodes.
-function reduceToContent(slice) {
-  while (slice.openStart < slice.openEnd && slice.content.childCount == 1)
-    slice = new slice.constructor(slice.content.firstChild.content, slice.openStart, slice.openEnd - 1)
-  while (slice.openEnd < slice.openStart && slice.content.childCount == 1)
-    slice = new slice.constructor(slice.content.firstChild.content, slice.openStart - 1, slice.openEnd)
-  return slice
 }
