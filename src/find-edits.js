@@ -1,5 +1,5 @@
 import {findDiffStart, findDiffEnd} from "./diff"
-import {Span, addSpan} from "./span"
+import {Span, addSpan, addSpanBelow} from "./span"
 
 // ::- Used to represent a deletion.
 class Deletion {
@@ -35,26 +35,23 @@ export function findEdits(oldDoc, newDoc, steps, data, compare, combine) {
   let maps = steps.map(s => s.getMap())
   let inverted = maps.map(m => m.invert())
 
-  // Map deletions to the original document
-  let atStart = []
-  for (let i = maps.length - 1; i >= 0; i--) {
-    maps[i].forEach((from, to) => {
-      for (let j = i - 1; j >= 0; j--) {
-        from = inverted[j].map(from, 1)
-        to = inverted[j].map(to, -1)
-      }
-      if (to > from) atStart = addSpan(atStart, from, to, data[i], compare, combine)
-    })
-  }
-  // Map insertions to the current document
-  let atEnd = []
+  // Map deletions to the original document, insertions to the current
+  // document
+  let atStart = [], atEnd = []
   for (let i = 0; i < maps.length; i++) {
-    maps[i].forEach((_from, _to, from, to) => {
-      for (let j = i + 1; j < maps.length; j++) {
-        from = maps[j].map(from, 1)
-        to = maps[j].map(to, -1)
+    maps[i].forEach((fromA, toA, fromB, toB) => {
+      for (let j = i - 1; j >= 0; j--) {
+        fromA = inverted[j].map(fromA, 1)
+        toA = inverted[j].map(toA, -1)
       }
-      if (to > from) atEnd = addSpan(atEnd, from, to, data[i], compare, combine)
+      if (toA > fromA)
+        atStart = addSpanBelow(atStart, fromA, toA, data[i], compare, combine)
+      for (let j = i + 1; j < maps.length; j++) {
+        fromB = maps[j].map(fromB, 1)
+        toB = maps[j].map(toB, -1)
+      }
+      if (toB > fromB)
+        atEnd = addSpan(atEnd, fromB, toB, data[i], compare, combine)
     })
   }
 
