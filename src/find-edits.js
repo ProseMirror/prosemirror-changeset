@@ -33,7 +33,6 @@ class Deletion {
 // to positions in the resulting document.
 export function findEdits(oldDoc, newDoc, steps, data, compare, combine) {
   let maps = steps.map(s => s.getMap())
-  let inverted = maps.map(m => m.invert())
 
   // Map deletions to the original document, insertions to the current
   // document
@@ -41,8 +40,9 @@ export function findEdits(oldDoc, newDoc, steps, data, compare, combine) {
   for (let i = 0; i < maps.length; i++) {
     maps[i].forEach((fromA, toA, fromB, toB) => {
       for (let j = i - 1; j >= 0; j--) {
-        fromA = inverted[j].map(fromA, 1)
-        toA = inverted[j].map(toA, -1)
+        let inv = maps[j].invert()
+        fromA = inv.map(fromA, 1)
+        toA = inv.map(toA, -1)
       }
       if (toA > fromA)
         addSpanBelow(atStart, fromA, toA, data[i], compare, combine)
