@@ -27,31 +27,40 @@ export function addSpanBelow(spans, from, to, data, compare, combine) {
 }
 
 export function addSpanInner(spans, from, to, data, compare, combine, above) {
-  let result = [], insert = 0
+  let inserted = null
 
   for (let i = 0; i < spans.length; i++) {
-    let span = spans[i]
-    if (span.from > to || span.to < from) {
-      result.push(span)
-      if (span.to < from) insert = result.length
-    } else if (compare(span.data, data)) {
+    let span = spans[i], compat = compare(span.data, data)
+    if (compat ? span.to < from : span.to <= from) {
+      // Not there yet
+    } else if (compat ? span.from > to : span.from >= to) {
+      if (!inserted) spans.splice(i, 0, inserted = new Span(from, to, data))
+      break
+    } else if (compat) {
       from = Math.min(from, span.from)
       to = Math.max(to, span.to)
       data = combine(span.data, data)
-      insert = result.length
-    } else if (above) {
-      if (span.from < from) result.push(span.to == from ? span : new Span(span.from, from, span.data))
-      insert = result.length
-      if (span.to > to) result.push(span.from == to ? span : new Span(to, span.to, span.data))
-    } else {
-      if (from < span.from) result.push(new Span(from, span.from, data))
-      result.push(span)
-      insert = result.length
-      if (to > span.to) from = span.to
-      else to = -1
+      spans.splice(i--, 1)
+    } else if (above) { // New span overwrites existing ones
+      if (span.from < from) spans.splice(i++, 0, new Span(span.from, from, span.data))
+      if (span.to > to) {
+        spans.splice(i, 0, inserted = new Span(from, to, data))
+        span.from = to
+        break
+      } else {
+        spans.splice(i--, 1)
+      }
+    } else { // New span only appears behind existing ones
+      if (from < span.from) spans.splice(i++, 0, new Span(from, span.from, data))
+      if (to <= span.to) {
+        inserted = true
+        break
+      } else {
+        from = span.to
+      }
     }
   }
-  if (to > -1) result.splice(insert, 0, new Span(from, to, data))
-  return result
+  if (!inserted) spans.push(new Span(from, to, data))
+  return spans
 }
 

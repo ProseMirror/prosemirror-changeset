@@ -45,13 +45,13 @@ export function findEdits(oldDoc, newDoc, steps, data, compare, combine) {
         toA = inverted[j].map(toA, -1)
       }
       if (toA > fromA)
-        atStart = addSpanBelow(atStart, fromA, toA, data[i], compare, combine)
+        addSpanBelow(atStart, fromA, toA, data[i], compare, combine)
       for (let j = i + 1; j < maps.length; j++) {
         fromB = maps[j].map(fromB, 1)
         toB = maps[j].map(toB, -1)
       }
       if (toB > fromB)
-        atEnd = addSpan(atEnd, fromB, toB, data[i], compare, combine)
+        addSpan(atEnd, fromB, toB, data[i], compare, combine)
     })
   }
 
