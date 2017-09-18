@@ -12,13 +12,6 @@ export class Span {
   }
 }
 
-export function join(setA, setB) {
-  let result
-  for (let i = 0; i < setB.length; i++) if (setA.indexOf(setB[i]) == -1)
-    (result || (result = setA.slice())).push(setB[i])
-  return result || setA
-}
-
 // :: ([Span], number, number, string) → [Span]
 // Updates an array of spans by adding a new one to it. Spans with
 // different authors are kept separate. When the new span touches

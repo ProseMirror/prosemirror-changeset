@@ -1,16 +1,16 @@
 import {findDiffStart, findDiffEnd} from "./diff"
-import {Span, join, addSpan} from "./span"
+import {Span, addSpan} from "./span"
 
 // ::- Used to represent a deletion.
 class Deletion {
-  constructor(pos, slice, changes) {
+  constructor(pos, slice, data) {
     this.pos = pos
     this.slice = slice
-    this.changes = changes
+    this.data = data
   }
 }
 
-// :: (Node, [Change]) → {deleted: [Deletion], inserted: [Span]}
+// :: (Node, Node, [Step], [any]) → {deleted: [Deletion], inserted: [Span]}
 //
 // When given a document (before the changes) and a set of changes,
 // this will determine the changes and insertions (relative to the
@@ -31,51 +31,51 @@ class Deletion {
 // The original document is then used to get text content for each
 // deleted range, and the positions of those ranges are mapped forward
 // to positions in the resulting document.
-export function findEdits(oldDoc, newDoc, changes) {
-  let maps = changes.map(ch => ch.step.getMap())
+export function findEdits(oldDoc, newDoc, steps, data, compare, combine) {
+  let maps = steps.map(s => s.getMap())
   let inverted = maps.map(m => m.invert())
 
   // Map deletions to the original document
   let atStart = []
-  for (let i = changes.length - 1; i >= 0; i--) {
+  for (let i = maps.length - 1; i >= 0; i--) {
     maps[i].forEach((from, to) => {
       for (let j = i - 1; j >= 0; j--) {
         from = inverted[j].map(from, 1)
         to = inverted[j].map(to, -1)
       }
-      if (to > from) addSpan(atStart, from, to, changes[i])
+      if (to > from) atStart = addSpan(atStart, from, to, data[i], compare, combine)
     })
   }
   // Map insertions to the current document
   let atEnd = []
-  for (let i = 0; i < changes.length; i++) {
+  for (let i = 0; i < maps.length; i++) {
     maps[i].forEach((_from, _to, from, to) => {
-      for (let j = i + 1; j < changes.length; j++) {
+      for (let j = i + 1; j < maps.length; j++) {
         from = maps[j].map(from, 1)
         to = maps[j].map(to, -1)
       }
-      if (to > from) addSpan(atEnd, from, to, changes[i])
+      if (to > from) atEnd = addSpan(atEnd, from, to, data[i], compare, combine)
     })
   }
 
   let deleted = []
   gather: for (let i = 0; i < atStart.length; i++) {
-    let {from, to, author, changes} = atStart[i], pos = from
+    let {from, to, data} = atStart[i], pos = from
     // Map the position of this deletion to a position in the current document
     for (let j = 0; j < maps.length; j++) pos = maps[j].map(pos, -1)
 
     let slice = oldDoc.slice(from, to)
-    // Check for adjacent insertions/deletions by the same author that
+    // Check for adjacent insertions/deletions whose data matches that
     // fully or partially undo each other, and shrink or delete them
     // to clean up the output.
     for (let j = 0; j < atEnd.length; j++) {
       let other = atEnd[j]
-      if (other.author != author || pos != other.from) continue
+      if (pos != other.from || !compare(other.data, data)) continue
       let otherSlice = newDoc.slice(other.from, other.to)
       let sameStart = sliceSameTo(slice, otherSlice)
       if (sameStart > 0) {
         if (sameStart >= other.to - other.from) atEnd.splice(j--, 1)
-        else atEnd[j] = other = new Span(other.from + sameStart, other.to, other.changes)
+        else atEnd[j] = other = new Span(other.from + sameStart, other.to, other.data)
         if (sameStart >= to - from) continue gather
         from += sameStart
         pos += sameStart
@@ -85,7 +85,7 @@ export function findEdits(oldDoc, newDoc, changes) {
       let sameEnd = sliceSameFrom(slice, otherSlice)
       if (sameEnd > 0) {
         if (sameEnd >= other.to - other.from) atEnd.splice(j--, 1)
-        else atEnd[j] = new Span(other.from, other.to - sameEnd, other.changes)
+        else atEnd[j] = new Span(other.from, other.to - sameEnd, other.data)
         if (sameEnd >= to - from) continue gather
         to -= sameEnd
         slice = oldDoc.slice(from, to)
@@ -93,7 +93,7 @@ export function findEdits(oldDoc, newDoc, changes) {
     }
 
     slice = reduceToContent(slice)
-    if (slice.size) deleted.push(new Deletion(pos, slice, changes))
+    if (slice.size) deleted.push(new Deletion(pos, slice, data))
   }
 
   return {deleted, inserted: atEnd}
