@@ -67,7 +67,7 @@ export class EditSet {
     // Map existing inserted spans forward
     for (let i = 0; i < this.inserted.length; i++) {
       let span = this.inserted[i], {from, to} = span
-      for (let j = this.maps.length; j < maps.length; j++) {
+      for (let j = this.maps.length; j < maps.length && to > from; j++) {
         from = maps[j].map(from, 1)
         to = maps[j].map(to, -1)
       }
@@ -76,27 +76,27 @@ export class EditSet {
 
     // Add spans for new steps.
     let newBoundaries = [] // Used to make sure new insertions are checked for merging
-    for (let i = this.maps.length; i < maps.length; i++) {
+    for (let i = this.maps.length, dI = 0; i < maps.length; i++, dI++) {
       // Map deletions backward to the original document, and add them
       // to `deleted`
       maps[i].forEach((fromA, toA, fromB, toB) => {
-        for (let j = i - 1; j >= 0; j--) {
+        for (let j = i - 1; j >= 0 && toA > fromA; j--) {
           let inv = maps[j].invert()
           fromA = inv.map(fromA, 1)
           toA = inv.map(toA, -1)
         }
         if (toA > fromA)
-          addSpanBelow(deleted, fromA, toA, data[i], this.base.compare, this.base.combine)
+          addSpanBelow(deleted, fromA, toA, data[dI], this.base.compare, this.base.combine)
 
         // Map insertions forward to the current one, and add them to
         // `inserted`.
-        for (let j = i + 1; j < maps.length; j++) {
+        for (let j = i + 1; j < maps.length && toB > fromB; j++) {
           fromB = maps[j].map(fromB, 1)
           toB = maps[j].map(toB, -1)
         }
         if (toB > fromB) {
           newBoundaries.push(fromB, toB)
-          addSpan(inserted, fromB, toB, data[i], this.base.compare, this.base.combine)
+          addSpan(inserted, fromB, toB, data[dI], this.base.compare, this.base.combine)
         }
       })
     }
@@ -113,7 +113,7 @@ export class EditSet {
                                             this.base.doc.slice(span.from, span.to))
         merge = true
       } else {
-        merge = span.pos.indexOf(newBoundaries) > -1
+        merge = newBoundaries.indexOf(span.pos) > -1
       }
 
       // Check for adjacent insertions/deletions with compatible data
@@ -148,7 +148,7 @@ export class EditSet {
     return new EditSet(this.base, maps, inserted, deleted)
   }
 
-  static create(doc, compare=(a, b) => a == b, combine=a=>a) {
+  static create(doc, compare= (a, b) => a == b, combine = a => a) {
     return new EditSet(new EditSetBase(doc, compare, combine), [], [], [])
   }
 }

@@ -1,6 +1,6 @@
 const ist = require("ist")
 const {schema, doc, p} = require("prosemirror-test-builder")
-const {Transform} = require("prosemirror-transform")
+const {Transform, Mapping} = require("prosemirror-transform")
 
 const {EditSet} = require("../src/find-edits")
 
@@ -38,23 +38,54 @@ describe("EditSet", () => {
   it("identifies a deletion between insertions",
      find(doc(p("z<a>y<b>z")), (tr, p) => tr.insert(p("a"), schema.text("A")).insert(p("b"), schema.text("B")).delete(p("a", 1), p("b")),
           {a: 2}, {a: "y"}))
+
+  it("can add a deletion in a new addStep call", find(doc(p("h<a>e<b>l<c>l<d>o")), [
+    (tr, p) => tr.delete(p("a"), p("b")),
+    (tr, p) => tr.delete(p("c"), p("d"))
+  ], null, {a: "e", c: "l"}))
+
+  it("merges delete/insert from different addStep calls", find(doc(p("he<a>ll<b>o")), [
+    (tr, p) => tr.delete(p("a"), p("b")),
+    (tr, p) => tr.insert(p("a"), schema.text("ll"))
+  ]))
+
+  it("partially merges delete/insert from different addStep calls", find(doc(p("he<a>lj<b>o")), [
+    (tr, p) => tr.delete(p("a"), p("b")),
+    (tr, p) => tr.insert(p("a"), schema.text("ll"))
+  ], {4: 1}, {4: "j"}))
+
+  it("merges insert/delete from different addStep calls", find(doc(p("o<a>k")), [
+    (tr, p) => tr.insert(p("a"), schema.text("--")),
+    (tr, p) => tr.delete(p("a"), p("a", 1))
+  ]))
+
+  it("partially merges insert/delete from different addStep calls", find(doc(p("o<a>k")), [
+    (tr, p) => tr.insert(p("a"), schema.text("--")),
+    (tr, p) => tr.delete(p("a"), p("a") + 1)
+  ], {a: 1}))
 })
 
 function find(doc, build, insertions, deletions, sep) {
   return () => {
-    let tr = new Transform(doc)
-    build(tr, (name, assoc) => tr.mapping.map(doc.tag[name], assoc || -1))
+    let set = EditSet.create(doc), mapping = new Mapping, nextId = 0, curDoc = doc
+    if (!Array.isArray(build)) build = [build]
+    build.forEach(build => {
+      let tr = new Transform(curDoc), ids = []
+      build(tr, (name, assoc=-1) => tr.mapping.map(mapping.map(doc.tag[name], assoc), assoc))
+      for (let i = 0; i < tr.steps.length; i++) ids.push(sep ? nextId++ : 0)
+      set = set.addSteps(tr.doc, tr.steps, ids)
+      mapping.appendMapping(tr.mapping)
+      curDoc = tr.doc
+    })
 
-    let ids = []
-    for (let i = 0; i < tr.steps.length; i++) ids.push(sep ? i : 0)
-    let {deleted, inserted} = EditSet.create(doc).addSteps(tr.doc, tr.steps, ids)
+    let {deleted, inserted} = set
 
     let delKeys = Object.keys(deletions || {}), insKeys = Object.keys(insertions || {})
     ist(inserted.length, insKeys.length)
     ist(deleted.length, delKeys.length)
 
     insKeys.forEach((name, i) => {
-      let pos = /\D/.test(name) ? tr.mapping.map(doc.tag[name], -1) : +name
+      let pos = /\D/.test(name) ? mapping.map(doc.tag[name], -1) : +name
       let {from, to} = inserted[i]
       ist(from, pos)
       ist(to, pos + insertions[name])
@@ -62,7 +93,7 @@ function find(doc, build, insertions, deletions, sep) {
 
     delKeys.forEach((name, i) => {
       let {pos, slice: {content}} = deleted[i]
-      ist(pos, /\D/.test(name) ? tr.mapping.map(doc.tag[name], -1) : +name)
+      ist(pos, /\D/.test(name) ? mapping.map(doc.tag[name], -1) : +name)
       ist(content.textBetween(0, content.size), deletions[name])
     })
   }
