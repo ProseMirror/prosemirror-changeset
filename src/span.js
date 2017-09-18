@@ -44,8 +44,7 @@ export function addSpanInner(spans, from, to, data, compare, combine, above) {
     } else if (above) { // New span overwrites existing ones
       if (span.from < from) spans.splice(i++, 0, new Span(span.from, from, span.data))
       if (span.to > to) {
-        spans.splice(i, 0, inserted = new Span(from, to, data))
-        span.from = to
+        spans.splice(i, 1, inserted = new Span(from, to, data), new Span(to, span.to, span.data))
         break
       } else {
         spans.splice(i--, 1)
