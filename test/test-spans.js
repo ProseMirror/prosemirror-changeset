@@ -8,12 +8,13 @@ function data(str) {
   return {author: m[1], ids: m[2] ? m[2].split(",") : [0]}
 }
 
-function test(d1, d2) { return d1.author == d2.author }
-
-function combine(d1, d2) {
-  let ids = d1.ids.concat()
-  for (let i = 0; i < d2.ids.length; i++) if (ids.indexOf(d2.ids[i]) < 0) ids.push(d2.ids[i])
-  return {author: d1.author, ids}
+let config = {
+  compare(d1, d2) { return d1.author == d2.author },
+  combine(d1, d2) {
+    let ids = d1.ids.concat()
+    for (let i = 0; i < d2.ids.length; i++) if (ids.indexOf(d2.ids[i]) < 0) ids.push(d2.ids[i])
+    return {author: d1.author, ids}
+  }
 }
 
 function spans(spec) {
@@ -25,14 +26,14 @@ function spans(spec) {
 
 function add(start, add, result) {
   return () => {
-    let out = addSpan(spans(start), add[0], add[1], data(add[2]), test, combine)
+    let out = addSpan(spans(start), add[0], add[1], data(add[2]), config)
     ist(JSON.stringify(out), JSON.stringify(spans(result)))
   }
 }
 
 function addB(start, add, result) {
   return () => {
-    let out = addSpanBelow(spans(start), add[0], add[1], data(add[2]), test, combine)
+    let out = addSpanBelow(spans(start), add[0], add[1], data(add[2]), config)
     ist(JSON.stringify(out), JSON.stringify(spans(result)))
   }
 }

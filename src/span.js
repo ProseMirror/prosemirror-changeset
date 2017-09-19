@@ -12,25 +12,28 @@ export class Span {
   }
 }
 
-// :: ([Span], number, number, string) → [Span]
+// : ([Span], number, number, any, {compare: (any, any) → bool, combine: (any, any) → any}) → [Span]
 // Updates an array of spans by adding a new one to it. Spans with
 // different authors are kept separate. When the new span touches
-// spans with the same author, it is joined with them. When it
-// overlaps with spans with different authors, it overwrites those
+// compatible (as per `config.compare` spans), it is joined with them.
+// When it overlaps with incompatible spans, it overwrites those
 // parts.
-export function addSpan(spans, from, to, data, compare, combine) {
-  return addSpanInner(spans, from, to, data, compare, combine, true)
+export function addSpan(spans, from, to, data, config) {
+  return addSpanInner(spans, from, to, data, config, true)
 }
 
-export function addSpanBelow(spans, from, to, data, compare, combine) {
-  return addSpanInner(spans, from, to, data, compare, combine, false)
+// : ([Span], number, number, any, {compare: (any, any) → bool, combine: (any, any) → any}) → [Span]
+// Works like `addSpan`, but leaves overlapping spans in the existing
+// data intact, shrinking/splitting the new span instead.
+export function addSpanBelow(spans, from, to, data, config) {
+  return addSpanInner(spans, from, to, data, config, false)
 }
 
-export function addSpanInner(spans, from, to, data, compare, combine, above) {
+export function addSpanInner(spans, from, to, data, config, above) {
   let inserted = null
 
   for (let i = 0; i < spans.length; i++) {
-    let span = spans[i], compat = compare(span.data, data)
+    let span = spans[i], compat = config.compare(span.data, data)
     if (compat ? span.to < from : span.to <= from) {
       // Not there yet
     } else if (compat ? span.from > to : span.from >= to) {
@@ -39,7 +42,7 @@ export function addSpanInner(spans, from, to, data, compare, combine, above) {
     } else if (compat) {
       from = Math.min(from, span.from)
       to = Math.max(to, span.to)
-      data = combine(span.data, data)
+      data = config.combine(span.data, data)
       spans.splice(i--, 1)
     } else if (above) { // New span overwrites existing ones
       if (span.from < from) spans.splice(i++, 0, new Span(span.from, from, span.data))

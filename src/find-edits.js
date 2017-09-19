@@ -13,21 +13,13 @@ export class DeletedSpan extends Span {
   }
 }
 
-class EditSetBase {
-  constructor(doc, compare, combine) {
-    this.doc = doc
-    this.compare = compare
-    this.combine = combine
-  }
-}
-
 // ::- An edit set tracks the changes to a document from a given point
 // in the past. It condenses a number of step maps down to a flat
 // sequence of insertions and deletions, and merges adjacent
 // insertions/deletions that (partially) undo each other.
 export class EditSet {
-  constructor(base, maps, inserted, deleted) {
-    this.base = base
+  constructor(config, maps, inserted, deleted) {
+    this.config = config
     this.maps = maps
     // :: [Span]
     // Inserted regions. Their `from`/`to` point into the current
@@ -88,8 +80,7 @@ export class EditSet {
           toA = inv.map(toA, -1)
         }
         if (toA > fromA)
-          addSpanBelow(deleted, fromA, toA, Array.isArray(data) ? data[dI] : data,
-                       this.base.compare, this.base.combine)
+          addSpanBelow(deleted, fromA, toA, Array.isArray(data) ? data[dI] : data, this.config)
 
         // Map insertions forward to the current one, and add them to
         // `inserted`.
@@ -99,8 +90,7 @@ export class EditSet {
         }
         if (toB > fromB) {
           newBoundaries.push(fromB, toB)
-          addSpan(inserted, fromB, toB, Array.isArray(data) ? data[dI] : data,
-                  this.base.compare, this.base.combine)
+          addSpan(inserted, fromB, toB, Array.isArray(data) ? data[dI] : data, this.config)
         }
       })
     }
@@ -114,7 +104,7 @@ export class EditSet {
         let pos = span.from
         for (let k = 0; k < maps.length; k++) pos = maps[k].map(pos, -1)
         deleted[i] = span = new DeletedSpan(span.from, span.to, span.data, pos,
-                                            this.base.doc.slice(span.from, span.to))
+                                            this.config.doc.slice(span.from, span.to))
         merge = true
       } else {
         merge = newBoundaries.indexOf(span.pos) > -1
@@ -126,7 +116,7 @@ export class EditSet {
       if (merge) for (; j < inserted.length; j++) {
         let next = inserted[j]
         if (next.from > span.pos) break
-        if (next.from < span.pos || !this.base.compare(span.data, next.data)) continue
+        if (next.from < span.pos || !this.config.compare(span.data, next.data)) continue
 
         let slice = newDoc.slice(next.from, next.to)
         let sameStart = sliceSameTo(span.slice, slice)
@@ -135,7 +125,7 @@ export class EditSet {
           else inserted[j] = next = new Span(next.from + sameStart, next.to, next.data)
           if (sameStart >= span.to - span.from) { deleted.splice(i--, 1); break }
           deleted[i] = span = new DeletedSpan(span.from + sameStart, span.to, span.data, span.pos + sameStart,
-                                              this.base.doc.slice(span.from + sameStart, span.to))
+                                              this.config.doc.slice(span.from + sameStart, span.to))
           slice = newDoc.slice(next.from, next.to)
         }
         let sameEnd = sliceSameFrom(span.slice, slice)
@@ -144,16 +134,23 @@ export class EditSet {
           else inserted[j] = new Span(next.from, next.to - sameEnd, next.data)
           if (sameEnd >= span.to - span.from) { deleted.splice(i--, 1); break }
           deleted[i] = span = new DeletedSpan(span.from, span.to - sameEnd, span.data, span.pos,
-                                              this.base.doc.slice(span.from, span.to - sameEnd))
+                                              this.config.doc.slice(span.from, span.to - sameEnd))
         }
       }
     }
 
-    return new EditSet(this.base, maps, inserted, deleted)
+    return new EditSet(this.config, maps, inserted, deleted)
   }
 
-  static create(doc, compare= (a, b) => a == b, combine = a => a) {
-    return new EditSet(new EditSetBase(doc, compare, combine), [], [], [])
+  // :: (Node, ?Object) → EditSet
+  // Create a new edit set with the given base object and
+  // configuration. The `compare` and `combine` options should be
+  // functions, and are used to compare and combine metadata—`compare`
+  // determines whether two spans are compatible, and when they are,
+  // `combine` will compute the metadata value for the merged span.
+  static create(doc, {compare = (a, b) => a == b, combine = a => a} = {}) {
+    let config = {compare, combine, doc}
+    return new EditSet(config, [], [], [])
   }
 }
 
