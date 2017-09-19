@@ -22,8 +22,8 @@ class EditSetBase {
 }
 
 // ::- An edit set tracks the changes to a document from a given point
-// in the past. It condenses a number of steps down to a flat sequence
-// of insertions and deletions, and merges adjacent
+// in the past. It condenses a number of step maps down to a flat
+// sequence of insertions and deletions, and merges adjacent
 // insertions/deletions that (partially) undo each other.
 export class EditSet {
   constructor(base, maps, inserted, deleted) {
@@ -39,10 +39,10 @@ export class EditSet {
     this.deleted = deleted
   }
 
-  // :: (Node, [Step], [any]) → EditSet
-  // Computes a new edit set by adding the given steps and metadata to
-  // the current set. Will not mutate the old set.
-  addSteps(newDoc, steps, data) {
+  // :: (Node, [StepMap], [any]) → EditSet
+  // Computes a new edit set by adding the given step maps and
+  // metadata to the current set. Will not mutate the old set.
+  addSteps(newDoc, maps, data) {
     // This works by inspecting the position maps for the changes,
     // which indicate what parts of the document were replaced by new
     // content, and the size of that new content. It maps all replaced
@@ -59,9 +59,9 @@ export class EditSet {
     // deleted range, and the positions of those ranges are mapped
     // forward to positions in the resulting document.
 
-    if (steps.length == 0) return this
+    if (maps.length == 0) return this
 
-    let maps = this.maps.concat(steps.map(s => s.getMap()))
+    maps = this.maps.concat(maps)
     let inserted = [], deleted = this.deleted.concat()
 
     // Map existing inserted spans forward

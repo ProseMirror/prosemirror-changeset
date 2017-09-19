@@ -73,7 +73,7 @@ function find(doc, build, insertions, deletions, sep) {
       let tr = new Transform(curDoc), ids = []
       build(tr, (name, assoc=-1) => tr.mapping.map(mapping.map(doc.tag[name], assoc), assoc))
       for (let i = 0; i < tr.steps.length; i++) ids.push(sep ? nextId++ : 0)
-      set = set.addSteps(tr.doc, tr.steps, ids)
+      set = set.addSteps(tr.doc, tr.mapping.maps, ids)
       mapping.appendMapping(tr.mapping)
       curDoc = tr.doc
     })
