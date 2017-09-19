@@ -17,7 +17,7 @@ export class DeletedSpan extends Span {
 // in the past. It condenses a number of step maps down to a flat
 // sequence of insertions and deletions, and merges adjacent
 // insertions/deletions that (partially) undo each other.
-export class EditSet {
+export class ChangeSet {
   constructor(config, maps, inserted, deleted) {
     this.config = config
     this.maps = maps
@@ -31,7 +31,7 @@ export class EditSet {
     this.deleted = deleted
   }
 
-  // :: (Node, [StepMap], union<[any], any>) → EditSet
+  // :: (Node, [StepMap], union<[any], any>) → ChangeSet
   // Computes a new edit set by adding the given step maps and
   // metadata (either as an array, per-map, or as a single value to be
   // associated with all maps) to the current set. Will not mutate the
@@ -139,10 +139,10 @@ export class EditSet {
       }
     }
 
-    return new EditSet(this.config, maps, inserted, deleted)
+    return new ChangeSet(this.config, maps, inserted, deleted)
   }
 
-  // :: (Node, ?Object) → EditSet
+  // :: (Node, ?Object) → ChangeSet
   // Create a new edit set with the given base object and
   // configuration. The `compare` and `combine` options should be
   // functions, and are used to compare and combine metadata—`compare`
@@ -150,7 +150,7 @@ export class EditSet {
   // `combine` will compute the metadata value for the merged span.
   static create(doc, {compare = (a, b) => a == b, combine = a => a} = {}) {
     let config = {compare, combine, doc}
-    return new EditSet(config, [], [], [])
+    return new ChangeSet(config, [], [], [])
   }
 }
 

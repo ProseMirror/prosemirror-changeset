@@ -2,9 +2,9 @@ const ist = require("ist")
 const {schema, doc, p} = require("prosemirror-test-builder")
 const {Transform, Mapping} = require("prosemirror-transform")
 
-const {EditSet} = require("../src/find-edits")
+const {ChangeSet} = require("../src/changeset")
 
-describe("EditSet", () => {
+describe("ChangeSet", () => {
   it("finds a single insertion",
      find(doc(p("he<a>llo")), (tr, p) => tr.insert(p("a"), schema.text("XY")), {a: 2}))
 
@@ -67,7 +67,7 @@ describe("EditSet", () => {
 
 function find(doc, build, insertions, deletions, sep) {
   return () => {
-    let set = EditSet.create(doc), mapping = new Mapping, curDoc = doc
+    let set = ChangeSet.create(doc), mapping = new Mapping, curDoc = doc
     if (!Array.isArray(build)) build = [build]
     build.forEach((build, i) => {
       let tr = new Transform(curDoc)
