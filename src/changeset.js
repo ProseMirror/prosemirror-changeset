@@ -56,9 +56,9 @@ export class ChangeSet {
     if (maps.length == 0) return this
 
     maps = this.maps.concat(maps)
-    let inserted = [], deleted = this.deleted.concat()
+    let inserted = [], deleted = []
 
-    // Map existing inserted spans forward
+    // Map existing inserted and deleted spans forward
     for (let i = 0; i < this.inserted.length; i++) {
       let span = this.inserted[i], {from, to} = span
       for (let j = this.maps.length; j < maps.length && to > from; j++) {
@@ -66,6 +66,11 @@ export class ChangeSet {
         to = maps[j].map(to, -1)
       }
       if (to > from) inserted.push(from != span.from || to != span.to ? new Span(from, to, span.data) : span)
+    }
+    for (let i = 0; i < this.deleted.length; i++) {
+      let span = this.deleted[i], pos = span.pos
+      for (let j = this.maps.length; j < maps.length; j++) pos = maps[j].map(pos, -1)
+      deleted.push(pos == span.pos ? span : new DeletedSpan(span.from, span.to, span.data, pos, span.slice))
     }
 
     // Add spans for new steps.

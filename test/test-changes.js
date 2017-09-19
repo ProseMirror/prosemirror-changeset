@@ -63,6 +63,11 @@ describe("ChangeSet", () => {
     (tr, p) => tr.insert(p("a"), schema.text("--")),
     (tr, p) => tr.delete(p("a"), p("a") + 1)
   ], {a: 1}))
+
+  it("maps deletions forward", find(doc(p("f<a>ooba<b>r<c>")), [
+    (tr, p) => tr.delete(p("b"), p("c")),
+    (tr, p) => tr.insert(p("a"), schema.text("OKAY"))
+  ], {a: 4}, {b: "r"}))
 })
 
 function find(doc, build, insertions, deletions, sep) {
