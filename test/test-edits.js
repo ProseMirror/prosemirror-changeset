@@ -67,13 +67,12 @@ describe("EditSet", () => {
 
 function find(doc, build, insertions, deletions, sep) {
   return () => {
-    let set = EditSet.create(doc), mapping = new Mapping, nextId = 0, curDoc = doc
+    let set = EditSet.create(doc), mapping = new Mapping, curDoc = doc
     if (!Array.isArray(build)) build = [build]
-    build.forEach(build => {
-      let tr = new Transform(curDoc), ids = []
+    build.forEach((build, i) => {
+      let tr = new Transform(curDoc)
       build(tr, (name, assoc=-1) => tr.mapping.map(mapping.map(doc.tag[name], assoc), assoc))
-      for (let i = 0; i < tr.steps.length; i++) ids.push(sep ? nextId++ : 0)
-      set = set.addSteps(tr.doc, tr.mapping.maps, ids)
+      set = set.addSteps(tr.doc, tr.mapping.maps, sep ? i : 0)
       mapping.appendMapping(tr.mapping)
       curDoc = tr.doc
     })

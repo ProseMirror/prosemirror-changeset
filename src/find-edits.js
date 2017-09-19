@@ -39,9 +39,11 @@ export class EditSet {
     this.deleted = deleted
   }
 
-  // :: (Node, [StepMap], [any]) → EditSet
+  // :: (Node, [StepMap], union<[any], any>) → EditSet
   // Computes a new edit set by adding the given step maps and
-  // metadata to the current set. Will not mutate the old set.
+  // metadata (either as an array, per-map, or as a single value to be
+  // associated with all maps) to the current set. Will not mutate the
+  // old set.
   addSteps(newDoc, maps, data) {
     // This works by inspecting the position maps for the changes,
     // which indicate what parts of the document were replaced by new
@@ -86,7 +88,8 @@ export class EditSet {
           toA = inv.map(toA, -1)
         }
         if (toA > fromA)
-          addSpanBelow(deleted, fromA, toA, data[dI], this.base.compare, this.base.combine)
+          addSpanBelow(deleted, fromA, toA, Array.isArray(data) ? data[dI] : data,
+                       this.base.compare, this.base.combine)
 
         // Map insertions forward to the current one, and add them to
         // `inserted`.
@@ -96,7 +99,8 @@ export class EditSet {
         }
         if (toB > fromB) {
           newBoundaries.push(fromB, toB)
-          addSpan(inserted, fromB, toB, data[dI], this.base.compare, this.base.combine)
+          addSpan(inserted, fromB, toB, Array.isArray(data) ? data[dI] : data,
+                  this.base.compare, this.base.combine)
         }
       })
     }
