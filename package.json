@@ -13,7 +13,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git://github.com/prosemirror/prosemirror.git"
+    "url": "git://github.com/prosemirror/prosemirror-changeset.git"
   },
   "devDependencies": {
     "mocha": "^3.5.3",
