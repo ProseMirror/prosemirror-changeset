@@ -3,11 +3,11 @@
 // represented with a subclass.
 export class Span {
   constructor(from, to, data) {
-    // :: number
+    // :: number The start of this span.
     this.from = from
-    // :: number
+    // :: number The end of the span.
     this.to = to
-    // :: any
+    // :: any Data associated with this span.
     this.data = data
   }
 }

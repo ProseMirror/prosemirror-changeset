@@ -29,6 +29,7 @@
     "test": "mocha test/test-*.js",
     "build": "rollup -c",
     "watch": "rollup -c -w",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "build-readme": "builddocs --name changeset --main src/README.md --format markdown src/*.js > README.md"
   }
 }

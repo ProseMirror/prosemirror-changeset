@@ -13,9 +13,9 @@ export class DeletedSpan extends Span {
   }
 }
 
-// ::- An edit set tracks the changes to a document from a given point
-// in the past. It condenses a number of step maps down to a flat
-// sequence of insertions and deletions, and merges adjacent
+// ::- An changeset tracks the changes to a document from a given
+// point in the past. It condenses a number of step maps down to a
+// flat sequence of insertions and deletions, and merges adjacent
 // insertions/deletions that (partially) undo each other.
 export class ChangeSet {
   constructor(config, maps, inserted, deleted) {
@@ -32,7 +32,7 @@ export class ChangeSet {
   }
 
   // :: (Node, [StepMap], union<[any], any>) → ChangeSet
-  // Computes a new edit set by adding the given step maps and
+  // Computes a new changeset by adding the given step maps and
   // metadata (either as an array, per-map, or as a single value to be
   // associated with all maps) to the current set. Will not mutate the
   // old set.
@@ -148,7 +148,7 @@ export class ChangeSet {
   }
 
   // :: (Node, ?Object) → ChangeSet
-  // Create a new edit set with the given base object and
+  // Create a changeset with the given base object and
   // configuration. The `compare` and `combine` options should be
   // functions, and are used to compare and combine metadata—`compare`
   // determines whether two spans are compatible, and when they are,
