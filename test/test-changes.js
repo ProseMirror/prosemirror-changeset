@@ -2,7 +2,7 @@ const ist = require("ist")
 const {schema, doc, p} = require("prosemirror-test-builder")
 const {Transform, Mapping} = require("prosemirror-transform")
 
-const {ChangeSet} = require("../src/changeset")
+const {ChangeSet} = require("..")
 
 describe("ChangeSet", () => {
   it("finds a single insertion",

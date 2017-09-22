@@ -10,26 +10,26 @@ export class Span {
     // :: any Data associated with this span.
     this.data = data
   }
+
+  // : ([Span], number, number, any, {compare: (any, any) → bool, combine: (any, any) → any}) → [Span]
+  // Updates an array of spans by adding a new one to it. Spans with
+  // different authors are kept separate. When the new span touches
+  // compatible (as per `config.compare` spans), it is joined with them.
+  // When it overlaps with incompatible spans, it overwrites those
+  // parts.
+  static add(spans, from, to, data, config) {
+    return addSpanInner(spans, from, to, data, config, true)
+  }
+
+  // : ([Span], number, number, any, {compare: (any, any) → bool, combine: (any, any) → any}) → [Span]
+  // Works like `addSpan`, but leaves overlapping spans in the existing
+  // data intact, shrinking/splitting the new span instead.
+  static addBelow(spans, from, to, data, config) {
+    return addSpanInner(spans, from, to, data, config, false)
+  }
 }
 
-// : ([Span], number, number, any, {compare: (any, any) → bool, combine: (any, any) → any}) → [Span]
-// Updates an array of spans by adding a new one to it. Spans with
-// different authors are kept separate. When the new span touches
-// compatible (as per `config.compare` spans), it is joined with them.
-// When it overlaps with incompatible spans, it overwrites those
-// parts.
-export function addSpan(spans, from, to, data, config) {
-  return addSpanInner(spans, from, to, data, config, true)
-}
-
-// : ([Span], number, number, any, {compare: (any, any) → bool, combine: (any, any) → any}) → [Span]
-// Works like `addSpan`, but leaves overlapping spans in the existing
-// data intact, shrinking/splitting the new span instead.
-export function addSpanBelow(spans, from, to, data, config) {
-  return addSpanInner(spans, from, to, data, config, false)
-}
-
-export function addSpanInner(spans, from, to, data, config, above) {
+function addSpanInner(spans, from, to, data, config, above) {
   let inserted = null
 
   for (let i = 0; i < spans.length; i++) {
@@ -65,4 +65,3 @@ export function addSpanInner(spans, from, to, data, config, above) {
   if (!inserted) spans.push(new Span(from, to, data))
   return spans
 }
-

@@ -1,5 +1,5 @@
 import {findDiffStart, findDiffEnd} from "./diff"
-import {Span, addSpan, addSpanBelow} from "./span"
+import {Span} from "./span"
 export {Span}
 
 // ::- Used to represent a deletion.
@@ -85,7 +85,7 @@ export class ChangeSet {
           toA = inv.map(toA, -1)
         }
         if (toA > fromA)
-          addSpanBelow(deleted, fromA, toA, Array.isArray(data) ? data[dI] : data, this.config)
+          Span.addBelow(deleted, fromA, toA, Array.isArray(data) ? data[dI] : data, this.config)
 
         // Map insertions forward to the current one, and add them to
         // `inserted`.
@@ -95,7 +95,7 @@ export class ChangeSet {
         }
         if (toB > fromB) {
           newBoundaries.push(fromB, toB)
-          addSpan(inserted, fromB, toB, Array.isArray(data) ? data[dI] : data, this.config)
+          Span.add(inserted, fromB, toB, Array.isArray(data) ? data[dI] : data, this.config)
         }
       })
     }

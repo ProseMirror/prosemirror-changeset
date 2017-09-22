@@ -1,6 +1,6 @@
 // Some tests for addSpan
 
-const {Span, addSpan, addSpanBelow} = require("../src/span.js")
+const {Span} = require("..")
 const ist = require("ist")
 
 function data(str) {
@@ -26,19 +26,19 @@ function spans(spec) {
 
 function add(start, add, result) {
   return () => {
-    let out = addSpan(spans(start), add[0], add[1], data(add[2]), config)
+    let out = Span.add(spans(start), add[0], add[1], data(add[2]), config)
     ist(JSON.stringify(out), JSON.stringify(spans(result)))
   }
 }
 
 function addB(start, add, result) {
   return () => {
-    let out = addSpanBelow(spans(start), add[0], add[1], data(add[2]), config)
+    let out = Span.addBelow(spans(start), add[0], add[1], data(add[2]), config)
     ist(JSON.stringify(out), JSON.stringify(spans(result)))
   }
 }
 
-describe("addSpan", () => {
+describe("Span.add", () => {
   it("can insert a span",
      add([0, 1, "a", 4, 5, "b"], [2, 3, "c"],
          [0, 1, "a", 2, 3, "c", 4, 5, "b"]))
