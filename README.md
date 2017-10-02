@@ -1,10 +1,10 @@
 # prosemirror-changeset
 
-This is a helper module that can turn a sequence of document changes
-into a set of insertions and deletions, for example to display them in
-a change-tracking interface. Such a set can be built up incrementally,
-in order to do such change tracking in a halfway performant way during
-live editing.
+This is a helper module for [ProseMirror](http://prosemirror.net). It
+can turn a sequence of document changes into a set of insertions and
+deletions, for example to display them in a change-tracking interface.
+Such a set can be built up incrementally, in order to do such change
+tracking in a halfway performant way during live editing.
 
 This code is licensed under an [MIT
 licence](https://github.com/ProseMirror/prosemirror-changeset/blob/master/LICENSE).
