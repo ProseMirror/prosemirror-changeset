@@ -75,3 +75,8 @@ insertions/deletions that (partially) undo each other.
    `combine` will compute the metadata value for the merged span.
 
 
+
+We aim to be an inclusive, welcoming community. To make that explicit,
+we have a [code of
+conduct](http://contributor-covenant.org/version/1/1/0/) that applies
+to communication around the project.
