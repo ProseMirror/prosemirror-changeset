@@ -1,6 +1,6 @@
 {
   "name": "prosemirror-changeset",
-  "version": "0.24.0",
+  "version": "1.0.0",
   "description": "Distills a series of editing steps into deleted and added ranges",
   "main": "dist/changeset.js",
   "license": "MIT",
@@ -20,9 +20,9 @@
     "ist": "^1.0.0",
     "rollup": "^0.49.0",
     "rollup-plugin-buble": "^0.15.0",
-    "prosemirror-model": "^0.24.0",
-    "prosemirror-transform": "^0.24.0",
-    "prosemirror-test-builder": "^0.24.0",
+    "prosemirror-model": "^1.0.0",
+    "prosemirror-transform": "^1.0.0",
+    "prosemirror-test-builder": "^1.0.0",
     "reify": "^0.12.3"
   },
   "scripts": {
