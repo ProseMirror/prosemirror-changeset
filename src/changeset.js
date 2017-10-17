@@ -118,7 +118,7 @@ export class ChangeSet {
       // Check for adjacent insertions/deletions with compatible data
       // that fully or partially undo each other, and shrink or delete
       // them to clean up the output.
-      if (merge) for (; j < inserted.length; j++) {
+      if (merge) for (; j < inserted.length && j >= 0; j++) {
         let next = inserted[j]
         if (next.from > span.pos) break
         if (next.from < span.pos || !this.config.compare(span.data, next.data)) continue
