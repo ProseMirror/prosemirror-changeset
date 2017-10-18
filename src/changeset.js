@@ -118,15 +118,16 @@ export class ChangeSet {
       // Check for adjacent insertions/deletions with compatible data
       // that fully or partially undo each other, and shrink or delete
       // them to clean up the output.
-      if (merge) for (; j < inserted.length; j++) {
+      if (merge) for (let nextJ; j < inserted.length; j = nextJ) {
         let next = inserted[j]
+        nextJ = j + 1
         if (next.from > span.pos) break
         if (next.from < span.pos || !this.config.compare(span.data, next.data)) continue
 
         let slice = newDoc.slice(next.from, next.to)
         let sameStart = sliceSameTo(span.slice, slice)
         if (sameStart > 0) {
-          if (sameStart >= next.to - next.from) inserted.splice(j--, 1)
+          if (sameStart >= next.to - next.from) inserted.splice(--nextJ, 1)
           else inserted[j] = next = new Span(next.from + sameStart, next.to, next.data)
           if (sameStart >= span.to - span.from) { deleted.splice(i--, 1); break }
           deleted[i] = span = new DeletedSpan(span.from + sameStart, span.to, span.data, span.pos + sameStart,
@@ -135,7 +136,7 @@ export class ChangeSet {
         }
         let sameEnd = sliceSameFrom(span.slice, slice)
         if (sameEnd > 0) {
-          if (sameEnd >= next.to - next.from) inserted.splice(j--, 1)
+          if (sameEnd >= next.to - next.from) inserted.splice(--nextJ, 1)
           else inserted[j] = new Span(next.from, next.to - sameEnd, next.data)
           if (sameEnd >= span.to - span.from) { deleted.splice(i--, 1); break }
           deleted[i] = span = new DeletedSpan(span.from, span.to - sameEnd, span.data, span.pos,

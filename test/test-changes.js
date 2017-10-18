@@ -17,6 +17,10 @@ describe("ChangeSet", () => {
   it("merges adjacent canceling edits",
      find(doc(p("he<a>ll<b>o")), (tr, p) => tr.delete(p("a"), p("b")).insert(p("a"), schema.text("ll"))))
 
+  it("doesn't crash when cancelling edits are followed by others",
+     find(doc(p("h<a>e<b>ll<c>o<d>")), (tr, p) => tr.delete(p("a"), p("b")).insert(p("a"), schema.text("e")).delete(p("c"), p("d")),
+          null, {c: "o"}))
+
   it("partially merges insert at start",
      find(doc(p("he<a>l<b>L<c>o")), (tr, p) => tr.delete(p("a"), p("c")).insert(p("a"), schema.text("l")), null, {4: "L"}))
 
