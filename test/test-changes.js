@@ -18,8 +18,14 @@ describe("ChangeSet", () => {
      find(doc(p("he<a>ll<b>o")), (tr, pos) => tr.delete(pos("a"), pos("b")).insert(pos("a"), schema.text("ll"))))
 
   it("doesn't crash when cancelling edits are followed by others",
-     find(doc(p("h<a>e<b>ll<c>o<d>")), (tr, pos) => tr.delete(pos("a"), pos("b")).insert(pos("a"), schema.text("e")).delete(pos("c"), pos("d")),
+     find(doc(p("h<a>e<b>ll<c>o<d>")),
+          (tr, pos) => tr.delete(pos("a"), pos("b")).insert(pos("a"), schema.text("e")).delete(pos("c"), pos("d")),
           null, {c: "o"}))
+
+  it("stops handling an inserted span after collapsing it",
+     find(doc(p("a<a>bcb<b>a")),
+          (tr, pos) => tr.insert(pos("a"), schema.text("b")).insert(pos("b"), schema.text("b")).delete(pos("a", 1), pos("b", -1)),
+          null, {3: "c"}))
 
   it("partially merges insert at start",
      find(doc(p("he<a>l<b>L<c>o")), (tr, pos) => tr.delete(pos("a"), pos("c")).insert(pos("a"), schema.text("l")), null, {4: "L"}))

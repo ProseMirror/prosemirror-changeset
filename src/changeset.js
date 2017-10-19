@@ -127,11 +127,13 @@ export class ChangeSet {
         let slice = newDoc.slice(next.from, next.to)
         let sameStart = sliceSameTo(span.slice, slice)
         if (sameStart > 0) {
-          if (sameStart >= next.to - next.from) inserted.splice(--nextJ, 1)
+          let dropNext = sameStart >= next.to - next.from
+          if (dropNext) inserted.splice(--nextJ, 1)
           else inserted[j] = next = new Span(next.from + sameStart, next.to, next.data)
           if (sameStart >= span.to - span.from) { deleted.splice(i--, 1); break }
           deleted[i] = span = new DeletedSpan(span.from + sameStart, span.to, span.data, span.pos + sameStart,
                                               this.config.doc.slice(span.from + sameStart, span.to))
+          if (dropNext) continue
           slice = newDoc.slice(next.from, next.to)
         }
         let sameEnd = sliceSameFrom(span.slice, slice)
