@@ -1,6 +1,6 @@
 {
   "name": "prosemirror-changeset",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Distills a series of editing steps into deleted and added ranges",
   "main": "dist/changeset.js",
   "license": "MIT",
