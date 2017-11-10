@@ -1,3 +1,4 @@
+import {StepMap} from "prosemirror-transform"
 import {findDiffStart, findDiffEnd} from "./diff"
 import {Span} from "./span"
 export {Span}
@@ -18,9 +19,8 @@ export class DeletedSpan extends Span {
 // flat sequence of insertions and deletions, and merges adjacent
 // insertions/deletions that (partially) undo each other.
 export class ChangeSet {
-  constructor(config, maps, inserted, deleted) {
+  constructor(config, inserted, deleted) {
     this.config = config
-    this.maps = maps
     // :: [Span]
     // Inserted regions. Their `from`/`to` point into the current
     // document.
@@ -29,6 +29,32 @@ export class ChangeSet {
     // Deleted ranges. Their `from`/`to` point into the old document,
     // and their `pos` into the new.
     this.deleted = deleted
+  }
+
+  getMap() {
+    let ranges = []
+    for (let iI = 0, iD = 0, off = 0;;) {
+      let ins = iI == this.inserted.length ? null : this.inserted[iI]
+      let del = iD == this.deleted.length ? null : this.deleted[iD]
+      if (ins == null && del == null) return new StepMap(ranges)
+      if (del == null || (ins != null && ins.from < del.pos)) {
+        let size = ins.to - ins.from
+        ranges.push(ins.from + off, 0, size)
+        off -= size
+        iI++
+      } else if (ins && ins.from == del.pos) {
+        let dSize = del.to - del.from, iSize = ins.to - ins.from
+        ranges.push(del.pos + off, dSize, iSize)
+        off += dSize - iSize
+        iI++
+        iD++
+      } else {
+        let size = del.to - del.from
+        ranges.push(del.pos + off, size, 0)
+        off += size
+        iD++
+      }
+    }
   }
 
   // :: (Node, [StepMap], union<[any], any>) → ChangeSet
@@ -55,13 +81,13 @@ export class ChangeSet {
 
     if (maps.length == 0) return this
 
-    maps = this.maps.concat(maps)
     let inserted = [], deleted = []
+    let map = this.getMap(), mapI = map.invert()
 
     // Map existing inserted and deleted spans forward
     for (let i = 0; i < this.inserted.length; i++) {
       let span = this.inserted[i], {from, to} = span
-      for (let j = this.maps.length; j < maps.length && to > from; j++) {
+      for (let j = 0; j < maps.length && to > from; j++) {
         from = maps[j].map(from, 1)
         to = maps[j].map(to, -1)
       }
@@ -69,13 +95,13 @@ export class ChangeSet {
     }
     for (let i = 0; i < this.deleted.length; i++) {
       let span = this.deleted[i], pos = span.pos
-      for (let j = this.maps.length; j < maps.length; j++) pos = maps[j].map(pos, -1)
+      for (let j = 0; j < maps.length; j++) pos = maps[j].map(pos, -1)
       deleted.push(pos == span.pos ? span : new DeletedSpan(span.from, span.to, span.data, pos, span.slice))
     }
 
     // Add spans for new steps.
     let newBoundaries = [] // Used to make sure new insertions are checked for merging
-    for (let i = this.maps.length, dI = 0; i < maps.length; i++, dI++) {
+    for (let i = 0, dI = 0; i < maps.length; i++, dI++) {
       // Map deletions backward to the original document, and add them
       // to `deleted`
       maps[i].forEach((fromA, toA, fromB, toB) => {
@@ -84,8 +110,12 @@ export class ChangeSet {
           fromA = inv.map(fromA, 1)
           toA = inv.map(toA, -1)
         }
-        if (toA > fromA)
-          Span.addBelow(deleted, fromA, toA, Array.isArray(data) ? data[dI] : data, this.config)
+        if (toA > fromA) {
+          fromA = mapI.map(fromA, 1)
+          toA = mapI.map(toA, -1)
+          if (toA > fromA)
+            Span.addBelow(deleted, fromA, toA, Array.isArray(data) ? data[dI] : data, this.config)
+        }
 
         // Map insertions forward to the current one, and add them to
         // `inserted`.
@@ -106,7 +136,7 @@ export class ChangeSet {
     for (let i = 0, j = 0; i < deleted.length; i++) {
       let span = deleted[i], merge = false
       if (!span.slice) {
-        let pos = span.from
+        let pos = map.map(span.from, -1)
         for (let k = 0; k < maps.length; k++) pos = maps[k].map(pos, -1)
         deleted[i] = span = new DeletedSpan(span.from, span.to, span.data, pos,
                                             this.config.doc.slice(span.from, span.to))
@@ -147,7 +177,7 @@ export class ChangeSet {
       }
     }
 
-    return new ChangeSet(this.config, maps, inserted, deleted)
+    return new ChangeSet(this.config, inserted, deleted)
   }
 
   // :: (Node, ?Object) → ChangeSet
@@ -158,7 +188,7 @@ export class ChangeSet {
   // `combine` will compute the metadata value for the merged span.
   static create(doc, {compare = (a, b) => a == b, combine = a => a} = {}) {
     let config = {compare, combine, doc}
-    return new ChangeSet(config, [], [], [])
+    return new ChangeSet(config, [], [])
   }
 }
 

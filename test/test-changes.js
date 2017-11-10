@@ -78,6 +78,17 @@ describe("ChangeSet", () => {
     (tr, pos) => tr.delete(pos("b"), pos("c")),
     (tr, pos) => tr.insert(pos("a"), schema.text("OKAY"))
   ], {a: 4}, {b: "r"}))
+
+  it("can incrementally undo then redo", find(doc(p("b<a>a<b>r")), [
+    (tr, pos) => tr.delete(pos("a"), pos("b")),
+    (tr, pos) => tr.insert(pos("a"), schema.text("a")),
+    (tr, pos) => tr.delete(pos("a"), pos("a") + 1)
+  ], null, {a: "a"}))
+
+  it("can map through complicated changesets", find(doc(p("12345678901234")), [
+    tr => tr.delete(9, 12).insert(6, schema.text("xyz")).replaceWith(2, 3, schema.text("uv")),
+    tr => tr.delete(14, 15).insert(13, schema.text("90")).delete(8, 9)
+  ], {2: 2, 7: 2}, {2: "2", 14: "1", 15: "3"}))
 })
 
 function find(doc, build, insertions, deletions, sep) {
