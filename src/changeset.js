@@ -1,7 +1,7 @@
 import {StepMap} from "prosemirror-transform"
-import {findDiffStart, findDiffEnd} from "./diff"
+import {findDiffStart, findDiffEnd, computeDiff} from "./diff"
 import {Span} from "./span"
-export {Span}
+export {Span, computeDiff}
 
 // ::- Used to represent a deletion.
 export class DeletedSpan extends Span {
