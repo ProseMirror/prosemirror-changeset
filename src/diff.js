@@ -34,7 +34,15 @@ const LEN_MASK = 0x1fffffff, FLAG_SHIFT = 29
 const FLAG_DEL = 1 << FLAG_SHIFT, FLAG_INS = 2 << FLAG_SHIFT, FLAG_SAME = 3 << FLAG_SHIFT
 
 const MAX_DIFF_COMPLEXITY = 10000
-const IGNORE_SMALL_SAME = 1
+
+// This obscure mess of constants computes the minimum length of an
+// unchanged range (not at the start/end of the compared content). The
+// idea is to make it higher in bigger replacements, so that you don't
+// get a diff soup of coincidentally identical letters when replacing
+// a paragraph.
+function minUnchanged(sizeA, sizeB) {
+  return Math.min(15, Math.max(2, Math.floor(Math.min(sizeA, sizeB) / 10)))
+}
 
 // : (Fragment, Fragment, number, number, number) → [Change]
 export function computeDiff(a, fromA, toA, b, fromB, toB) {
@@ -58,6 +66,7 @@ export function computeDiff(a, fromA, toA, b, fromB, toB) {
 
   // Longest common subsequence algorithm, based on
   // https://en.wikipedia.org/wiki/Longest_common_subsequence_problem#Code_for_the_dynamic_programming_solution
+
   let table = [], cols = endA - start, rows = endB - start
   for (let y = 0, index = 0; y < rows; y++) {
     let tokenB = tokB[y + start]
@@ -75,6 +84,7 @@ export function computeDiff(a, fromA, toA, b, fromB, toB) {
   }
 
   let result = [], offA = fromA + start, offB = fromB + start
+  let minSpan = minUnchanged(rows, cols)
   for (let x = cols, y = rows, cur = null, index = table.length - 1; x > 0 || y > 0;) {
     let startX = x, startY = y
     let flag = x == 0 ? FLAG_INS : y == 0 ? FLAG_DEL : table[index] & ~LEN_MASK
@@ -82,8 +92,7 @@ export function computeDiff(a, fromA, toA, b, fromB, toB) {
     if (flag == FLAG_SAME) {
       x--, y--
       index -= cols + 1
-      // FIXME ignore bigger chunks for bigger diffed ranges? to avoid diff soup for big overwrites
-      if (cur && (cur.fromA > x + offA + IGNORE_SMALL_SAME || cur.fromB > y + offB + IGNORE_SMALL_SAME)) cur = null
+      if (cur && (cur.fromA >= x + offA + minSpan || cur.fromB >= y + offB + minSpan)) cur = null
     } else {
       if (flag == FLAG_DEL) x--, index--
       else y--, index -= cols
