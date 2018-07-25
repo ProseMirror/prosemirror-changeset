@@ -5,7 +5,7 @@ const {computeDiff} = require("..")
 
 describe("computeDiff", () => {
   function test(doc1, doc2, ...ranges) {
-    let diff = computeDiff(doc1.content, doc2.content)
+    let diff = computeDiff(doc1.content, 0, doc1.content.size, doc2.content, 0, doc2.content.size)
     ist(JSON.stringify(diff.map(r => [r.fromA, r.toA, r.fromB, r.toB])), JSON.stringify(ranges))
   }
 

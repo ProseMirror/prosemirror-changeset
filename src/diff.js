@@ -92,53 +92,57 @@ const MAX_DIFF_COMPLEXITY = 10000
 const IGNORE_SMALL_SAME = 1
 
 // : (Fragment, Fragment, number, number, number) → [Change]
-export function computeDiff(a, b) {
+export function computeDiff(a, fromA, toA, b, fromB, toB) {
+  if (fromA == toA || fromB == toB) {
+    if (fromA == toA && fromB == toB) return []
+    return [new Change(fromA, toA, fromB, toB)]
+  }
+
+  let tokA = tokens(a, fromA, toA, []), tokB = tokens(b, fromB, toB, [])
+  let lenA = tokA.length, lenB = tokB.length
   // Scan from both sides to cheaply eliminate work
-  let start = findDiffStart(a, b, 0)
-  if (start == null) return []
-  let {a: aEnd, b: bEnd} = findDiffEnd(a, b, a.size, b.size)
-  let ambig = start - Math.min(aEnd, bEnd)
-  if (ambig > 0) { aEnd += ambig; bEnd += ambig }
+  let start = 0, endA = lenA, endB = lenB
+  while (start < lenA && start < lenB && tokA[start] === tokB[start]) start++
+  if (start == lenA && start == lenB) return []
+  while (endA > start && endB > start && tokA[endA - 1] === tokB[endB - 1]) endA--, endB--
   // If the result is simple _or_ too big to cheaply compute, return
   // the remaining region as the diff
-  if (start == aEnd || start == bEnd || (aEnd == bEnd && aEnd == start + 1) ||
-      (aEnd - start) * (bEnd - start) > MAX_DIFF_COMPLEXITY)
-    return [new Change(start, aEnd, start, bEnd)]
-
-  let tokA = tokens(a, start, aEnd, []), tokB = tokens(b, start, bEnd, [])
-  let aLen = tokA.length, bLen = tokB.length, table = []
+  if (endA == start || endB == start || (endA == endB && endA == start + 1) ||
+      (endA - start) * (endB - start) > MAX_DIFF_COMPLEXITY)
+    return [new Change(start, endA, start, endB)]
 
   // Longest common subsequence algorithm, based on
   // https://en.wikipedia.org/wiki/Longest_common_subsequence_problem#Code_for_the_dynamic_programming_solution
-  for (let y = 0, index = 0; y < bLen; y++) {
-    let tokenB = tokB[y]
-    for (let x = 0; x < aLen; x++) {
-      let tokenA = tokA[x]
+  let table = [], cols = endA - start, rows = endB - start
+  for (let y = 0, index = 0; y < rows; y++) {
+    let tokenB = tokB[y + start]
+    for (let x = 0; x < cols; x++) {
+      let tokenA = tokA[x + start]
       if (tokenA === tokenB) {
-        table[index] = ((x == 0 || y == 0 ? 0 : table[index - 1 - aLen] & LEN_MASK) + 1) | FLAG_SAME
+        table[index] = ((x == 0 || y == 0 ? 0 : table[index - 1 - cols] & LEN_MASK) + 1) | FLAG_SAME
       } else {
         let del = x == 0 ? 0 : table[index - 1] & LEN_MASK
-        let ins = y == 0 ? 0 : table[index - aLen] & LEN_MASK
+        let ins = y == 0 ? 0 : table[index - cols] & LEN_MASK
         table[index] = del < ins ? ins | FLAG_INS : del | FLAG_DEL
       }
       index++
     }
   }
 
-  let result = []
-  for (let x = aLen, y = bLen, cur = null, index = table.length - 1; x > 0 || y > 0;) {
+  let result = [], offA = start + fromA, offB = start + fromB
+  for (let x = cols, y = rows, cur = null, index = table.length - 1; x > 0 || y > 0;) {
     let startX = x, startY = y
     let flag = x == 0 ? FLAG_INS : y == 0 ? FLAG_DEL : table[index] & ~LEN_MASK
 
     if (flag == FLAG_SAME) {
       x--, y--
-      index -= aLen + 1
-      if (cur && (cur.fromA > x + start + IGNORE_SMALL_SAME || cur.fromB > y + start + IGNORE_SMALL_SAME)) cur = null
+      index -= cols + 1
+      if (cur && (cur.fromA > x + offA + IGNORE_SMALL_SAME || cur.fromB > y + offB + IGNORE_SMALL_SAME)) cur = null
     } else {
       if (flag == FLAG_DEL) x--, index--
-      else y--, index -= aLen
-      if (cur) cur.fromA = x + start, cur.fromB = y + start
-      else result.push(cur = new Change(x + start, startX + start, y + start, startY + start))
+      else y--, index -= cols
+      if (cur) cur.fromA = x + offA, cur.fromB = y + offB
+      else result.push(cur = new Change(x + offA, startX + offA, y + offB, startY + offB))
     }
   }
   return result.reverse()
