@@ -89,6 +89,11 @@ describe("ChangeSet", () => {
     tr => tr.delete(9, 12).insert(6, schema.text("xyz")).replaceWith(2, 3, schema.text("uv")),
     tr => tr.delete(14, 15).insert(13, schema.text("90")).delete(8, 9)
   ], {2: 2, 7: 2}, {2: "2", 14: "1", 15: "3"}))
+
+  it("computes a proper diff of the changes",
+     find(doc(p("abcd"), p("efgh")),
+          tr => tr.delete(2, 10).insert(2, schema.text("cdef")),
+          null, {2: "b", 4: "", 6: "g"}))
 })
 
 function find(doc, build, insertions, deletions, sep) {
