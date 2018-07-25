@@ -105,21 +105,12 @@ function find(doc, build, insertions, deletions, sep) {
 
     let {deleted, inserted} = set
 
-    let delKeys = Object.keys(deletions || {}), insKeys = Object.keys(insertions || {})
-    ist(inserted.length, insKeys.length)
-    ist(deleted.length, delKeys.length)
-
-    insKeys.forEach((name, i) => {
-      let pos = /\D/.test(name) ? mapping.map(doc.tag[name], -1) : +name
-      let {from, to} = inserted[i]
-      ist(from, pos)
-      ist(to, pos + insertions[name])
-    })
-
-    delKeys.forEach((name, i) => {
-      let {pos, slice: {content}} = deleted[i]
-      ist(pos, /\D/.test(name) ? mapping.map(doc.tag[name], -1) : +name)
-      ist(content.textBetween(0, content.size), deletions[name])
-    })
+    ist(JSON.stringify(inserted.map(i => [i.from, i.to])),
+        JSON.stringify(Object.keys(insertions || {}).map(k => {
+          let pos = /\D/.test(k) ? mapping.map(doc.tag[k], -1) : +k
+          return [pos, pos + insertions[k]]
+        })))
+    ist(JSON.stringify(deleted.map(d => [d.pos, d.slice.content.textBetween(0, d.slice.content.size)])),
+        JSON.stringify(Object.keys(deletions || {}).map(k => [/\D/.test(k) ? mapping.map(doc.tag[k], -1) : +k, deletions[k]])))
   }
 }

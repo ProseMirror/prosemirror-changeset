@@ -1,5 +1,5 @@
 import {StepMap} from "prosemirror-transform"
-import {findDiffStart, findDiffEnd, computeDiff} from "./diff"
+import {computeDiff} from "./diff"
 import {Span} from "./span"
 export {Span, computeDiff}
 
@@ -148,32 +148,37 @@ export class ChangeSet {
       // Check for adjacent insertions/deletions with compatible data
       // that fully or partially undo each other, and shrink or delete
       // them to clean up the output.
-      if (merge) for (let nextJ; j < inserted.length; j = nextJ) {
+      let touches = -1
+      if (merge) for (; j < inserted.length; j++) {
         let next = inserted[j]
-        nextJ = j + 1
         if (next.from > span.pos) break
-        if (next.from < span.pos || !this.config.compare(span.data, next.data)) continue
+        if (next.from < span.pos) continue
+        if (this.config.compare(span.data, next.data)) {
+          touches = j
+          break
+        }
+      }
 
-        let slice = newDoc.slice(next.from, next.to)
-        let sameStart = sliceSameTo(span.slice, slice)
-        if (sameStart > 0) {
-          let dropNext = sameStart >= next.to - next.from
-          if (dropNext) inserted.splice(--nextJ, 1)
-          else inserted[j] = next = new Span(next.from + sameStart, next.to, next.data)
-          if (sameStart >= span.to - span.from) { deleted.splice(i--, 1); break }
-          deleted[i] = span = new DeletedSpan(span.from + sameStart, span.to, span.data, span.pos + sameStart,
-                                              this.config.doc.slice(span.from + sameStart, span.to))
-          if (dropNext) continue
-          slice = newDoc.slice(next.from, next.to)
+      maybeMerge: if (touches > -1) {
+        let {slice} = span, insSpan = inserted[touches]
+        let diff = computeDiff(slice.content, slice.openStart, slice.content.size - slice.openEnd,
+                               newDoc.content, insSpan.from, insSpan.to)
+        // If they are completely different, don't do anything
+        if (diff.length == 1 && diff[0].fromB == insSpan.from && diff[0].toB == insSpan.to) break maybeMerge
+
+        let deletedPieces = [], sliceBase = span.from - slice.openStart, insertedPieces = []
+        for (let k = 0; k < diff.length; k++) {
+          let {fromA, toA, fromB, toB} = diff[k]
+          if (fromA < toA)
+            deletedPieces.push(new DeletedSpan(sliceBase + fromA, sliceBase + toA, span.data, fromB,
+                                               this.config.doc.slice(sliceBase + fromA, sliceBase + toA)))
+          if (fromB < toB)
+            insertedPieces.push(new Span(fromB, toB, insSpan.data))
         }
-        let sameEnd = sliceSameFrom(span.slice, slice)
-        if (sameEnd > 0) {
-          if (sameEnd >= next.to - next.from) inserted.splice(--nextJ, 1)
-          else inserted[j] = new Span(next.from, next.to - sameEnd, next.data)
-          if (sameEnd >= span.to - span.from) { deleted.splice(i--, 1); break }
-          deleted[i] = span = new DeletedSpan(span.from, span.to - sameEnd, span.data, span.pos,
-                                              this.config.doc.slice(span.from, span.to - sameEnd))
-        }
+        deleted.splice(i, 1, ...deletedPieces)
+        i += deletedPieces.length - 1
+        inserted.splice(j, 1, ...insertedPieces)
+        j += insertedPieces.length
       }
     }
 
@@ -190,20 +195,4 @@ export class ChangeSet {
     let config = {compare, combine, doc}
     return new ChangeSet(config, [], [])
   }
-}
-
-function sliceSameTo(a, b) {
-  let openA = a.openStart, openB = b.openStart, fragA = a.content, fragB = b.content
-  for (; openA > openB; openA--) fragA = fragA.firstChild.content
-  for (; openB > openA; openB--) fragB = fragB.firstChild.content
-  let start = findDiffStart(fragA, fragB, 0)
-  return Math.min(a.size, b.size, (start == null ? fragA.size : start) - openA)
-}
-
-function sliceSameFrom(a, b) {
-  let openA = a.openEnd, openB = b.openEnd, fragA = a.content, fragB = b.content
-  for (; openA > openB; openA--) fragA = fragA.lastChild.content
-  for (; openB > openA; openB--) fragB = fragB.lastChild.content
-  let end = findDiffEnd(fragA, fragB, fragA.size, fragB.size)
-  return Math.min(a.size, b.size, fragA.size - (end ? end.a : 0) - openA)
 }
