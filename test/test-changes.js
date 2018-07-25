@@ -94,6 +94,13 @@ describe("ChangeSet", () => {
      find(doc(p("abcd"), p("efgh")),
           tr => tr.delete(2, 10).insert(2, schema.text("cdef")),
           null, {2: "b", 4: "", 6: "g"}))
+
+  it("handles re-adding content step by step", find(doc(p("one two three")), [
+    tr => tr.delete(1, 14),
+    tr => tr.insert(1, schema.text("two")),
+    tr => tr.insert(4, schema.text(" ")),
+    tr => tr.insert(5, schema.text("three"))
+  ], null, {1: "one "}))
 })
 
 function find(doc, build, insertions, deletions, sep) {
