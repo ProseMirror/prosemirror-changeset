@@ -2,21 +2,23 @@
 // difference. Does not compare attributes or marks, only node
 // structure and text. Null means no difference
 export function findDiffStart(a, b, pos) {
-  for (let i = 0;; i++) {
-    if (i == a.childCount || i == b.childCount)
-      return a.childCount == b.childCount ? null : pos
+  for (let iA = 0, iB = 0;;) {
+    if (iA == a.childCount || iB == b.childCount)
+      return iA == a.childCount && iB == b.childCount ? null : pos
 
-    let childA = a.child(i), childB = b.child(i)
-    if (childA == childB) { pos += childA.nodeSize; continue }
+    let childA = a.child(iA++), childB = b.child(iB++)
 
-    if (childA.type != childB.type) return pos
-
-    if (childA.isText && childA.text != childB.text) {
-      for (let j = 0; childA.text[j] == childB.text[j]; j++)
-        pos++
+    if (childA == childB) {
+      // Same value
+    } else if (childA.type != childB.type) {
       return pos
-    }
-    if (childA.content.size || childB.content.size) {
+    } else if (childA.isText) {
+      let tA = childA.text, tB = childB.text, same = 0
+      while (iA < a.childCount && a.child(iA).isText) tA += a.child(iA++).text
+      while (iB < b.childCount && b.child(iB).isText) tB += b.child(iB++).text
+      while (same < tA.length && same < tB.length && tA.charCodeAt(same) == tB.charCodeAt(same)) same++
+      if (same < tA.length || same < tB.length) return pos + same
+    } else if (childA.content.size || childB.content.size) {
       let inner = findDiffStart(childA.content, childB.content, pos + 1)
       if (inner != null) return inner
     }
@@ -29,24 +31,21 @@ export function findDiffStart(a, b, pos) {
 export function findDiffEnd(a, b, posA, posB) {
   for (let iA = a.childCount, iB = b.childCount;;) {
     if (iA == 0 || iB == 0)
-      return iA == iB ? null : {a: posA, b: posB}
+      return iA == 0 && iB == 0 ? null : {a: posA, b: posB}
 
     let childA = a.child(--iA), childB = b.child(--iB), size = childA.nodeSize
     if (childA == childB) {
-      posA -= size; posB -= size
-      continue
-    }
-
-    if (childA.type != childB.type) return {a: posA, b: posB}
-
-    if (childA.isText && childA.text != childB.text) {
-      let same = 0, minSize = Math.min(childA.text.length, childB.text.length)
-      while (same < minSize && childA.text[childA.text.length - same - 1] == childB.text[childB.text.length - same - 1]) {
-        same++; posA--; posB--
-      }
+      // Same node
+    } else if (childA.type != childB.type) {
       return {a: posA, b: posB}
-    }
-    if (childA.content.size || childB.content.size) {
+    } else if (childA.isText) {
+      let tA = childA.text, tB = childB.text, same = 0
+      while (iA > 0 && a.child(iA - 1).isText) tA = a.child(--iA).text + tA
+      while (iB > 0 && b.child(iB - 1).isText) tB = b.child(--iB).text + tB
+      while (same < tA.length && same < tB.length &&
+             tA.charCodeAt(tA.length - same - 1) == tB.charCodeAt(tB.length - same - 1)) same++
+      if (same < tA.length || same < tB.length) return {a: posA - same, b: posB - same}
+    } else if (childA.content.size || childB.content.size) {
       let inner = findDiffEnd(childA.content, childB.content, posA - 1, posB - 1)
       if (inner) return inner
     }
@@ -63,7 +62,7 @@ function tokens(frag, start, end, target) {
     let from = Math.max(off, start), to = Math.min(endOff, end)
     if (from < to) {
       if (child.isText) {
-        for (let i = from; i < to; i++) target.push(child.text.charCodeAt(i - off))
+        for (let j = from; j < to; j++) target.push(child.text.charCodeAt(j - off))
       } else if (child.isLeaf) {
         target.push(child.type.name)
       } else {
@@ -93,11 +92,11 @@ const MAX_DIFF_COMPLEXITY = 10000
 const IGNORE_SMALL_SAME = 1
 
 // : (Fragment, Fragment, number, number, number) → [Change]
-export function computeDiff(a, b, start, aEnd, bEnd) {
+export function computeDiff(a, b) {
   // Scan from both sides to cheaply eliminate work
-  start = findDiffStart(a, b, start)
+  let start = findDiffStart(a, b, 0)
   if (start == null) return []
-  ;({a: aEnd, b: bEnd} = findDiffEnd(a, b, aEnd, bEnd))
+  let {a: aEnd, b: bEnd} = findDiffEnd(a, b, a.size, b.size)
   // If the result is simple _or_ too big to cheaply compute, return
   // the remaining region as the diff
   if (start == aEnd || start == bEnd || (aEnd == bEnd && aEnd == start + 1) ||
@@ -124,7 +123,6 @@ export function computeDiff(a, b, start, aEnd, bEnd) {
     }
   }
 
-  // FIXME simplify output by ignoring short unchanged ranges?
   let result = []
   for (let x = aLen, y = bLen, cur = null, index = table.length - 1; x > 0 || y > 0;) {
     let startX = x, startY = y
