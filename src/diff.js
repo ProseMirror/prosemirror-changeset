@@ -97,6 +97,8 @@ export function computeDiff(a, b) {
   let start = findDiffStart(a, b, 0)
   if (start == null) return []
   let {a: aEnd, b: bEnd} = findDiffEnd(a, b, a.size, b.size)
+  let ambig = start - Math.min(aEnd, bEnd)
+  if (ambig > 0) { aEnd += ambig; bEnd += ambig }
   // If the result is simple _or_ too big to cheaply compute, return
   // the remaining region as the diff
   if (start == aEnd || start == bEnd || (aEnd == bEnd && aEnd == start + 1) ||

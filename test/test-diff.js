@@ -52,4 +52,7 @@ describe("computeDiff", () => {
   it("finds huge insertions", () =>
      test(doc(p("a" + "x".repeat(500) + "bb" + "x".repeat(500) + "c")), doc(p("abbc")),
           [2, 502, 2, 2], [504, 1004, 4, 4]))
+
+  it("can handle ambiguous diffs", () =>
+     test(doc(p("abcbcd")), doc(p("abcd")), [4, 6, 4, 4]))
 })
