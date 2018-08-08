@@ -4,6 +4,7 @@
   "description": "Distills a series of editing steps into deleted and added ranges",
   "main": "dist/changeset.js",
   "license": "MIT",
+  "types": "index.d.ts",
   "maintainers": [
     {
       "name": "Marijn Haverbeke",
@@ -25,6 +26,8 @@
     "reify": "^0.12.3"
   },
   "dependencies": {
+    "@types/prosemirror-model": "^1.5.0",
+    "@types/prosemirror-transform": "^1.1.0",
     "prosemirror-transform": "^1.0.0"
   },
   "scripts": {
