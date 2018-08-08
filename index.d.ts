@@ -18,5 +18,5 @@ export class ChangeSet {
   readonly inserted: Span[]
   readonly deleted: DeletedSpan[]
   addSteps (newDoc: Node, maps: ReadonlyArray<StepMap>, data: Metadata): Changeset
-  static create (doc: Node, object ?: { compare: (a: Metadata, b: Metadata) => boolean, combine: (a: Metadata) => Metadata})
+  static create (doc: Node, object ?: { compare: (a: Metadata, b: Metadata) => boolean, combine ?: (a: Metadata) => Metadata})
 }
