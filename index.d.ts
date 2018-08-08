@@ -14,7 +14,7 @@ export class DeletedSpan extends Span {
 
 export type Metadata = any[] | {[key: string]: any}
 
-export class Changeset {
+export class ChangeSet {
   readonly inserted: Span[]
   readonly deleted: DeletedSpan[]
   addSteps (newDoc: Node, maps: ReadonlyArray<StepMap>, data: Metadata): Changeset
