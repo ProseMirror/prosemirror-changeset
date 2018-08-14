@@ -1,5 +1,5 @@
 const ist = require("ist")
-const {schema, doc, p, em, strong, h1, h2} = require("prosemirror-test-builder")
+const {doc, p, em, strong, h1, h2} = require("prosemirror-test-builder")
 
 const {computeDiff} = require("..")
 
