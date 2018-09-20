@@ -62,6 +62,12 @@ export class ChangeSet {
   // metadata (either as an array, per-map, or as a single value to be
   // associated with all maps) to the current set. Will not mutate the
   // old set.
+  //
+  // Note that due to simplification that happens after each add,
+  // incrementally adding steps might create a different final set
+  // than adding all those changes at once, since different document
+  // tokens might be matched during simplification depending on the
+  // boundaries of the current changed ranges.
   addSteps(newDoc, maps, data) {
     // This works by inspecting the position maps for the changes,
     // which indicate what parts of the document were replaced by new
@@ -185,7 +191,7 @@ export class ChangeSet {
     return new ChangeSet(this.config, inserted, deleted)
   }
 
-  // :: (Node, ?Object) → ChangeSet
+  // :: (Node, options: ?{compare: ?(a: any, b: any) → boolean, combine: ?(a: any, b: any) → any}) → ChangeSet
   // Create a changeset with the given base object and
   // configuration. The `compare` and `combine` options should be
   // functions, and are used to compare and combine metadata—`compare`

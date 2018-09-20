@@ -1,10 +1,10 @@
 # prosemirror-changeset
 
-This is a helper module for [ProseMirror](http://prosemirror.net). It
-can turn a sequence of document changes into a set of insertions and
-deletions, for example to display them in a change-tracking interface.
-Such a set can be built up incrementally, in order to do such change
-tracking in a halfway performant way during live editing.
+This is a helper module that can turn a sequence of document changes
+into a set of insertions and deletions, for example to display them in
+a change-tracking interface. Such a set can be built up incrementally,
+in order to do such change tracking in a halfway performant way during
+live editing.
 
 This code is licensed under an [MIT
 licence](https://github.com/ProseMirror/prosemirror-changeset/blob/master/LICENSE).
@@ -67,7 +67,13 @@ insertions/deletions that (partially) undo each other.
    associated with all maps) to the current set. Will not mutate the
    old set.
 
- * `static `**`create`**`(doc: Node, ?Object = {}) → ChangeSet`\
+   Note that due to simplification that happens after each add,
+   incrementally adding steps might create a different final set
+   than adding all those changes at once, since different document
+   tokens might be matched during simplification depending on the
+   boundaries of the current changed ranges.
+
+ * `static `**`create`**`(doc: Node, options: ?{compare: ?fn(a: any, b: any) → boolean, combine: ?fn(a: any, b: any) → any} = {}) → ChangeSet`\
    Create a changeset with the given base object and
    configuration. The `compare` and `combine` options should be
    functions, and are used to compare and combine metadata—`compare`
@@ -75,8 +81,3 @@ insertions/deletions that (partially) undo each other.
    `combine` will compute the metadata value for the merged span.
 
 
-
-We aim to be an inclusive, welcoming community. To make that explicit,
-we have a [code of
-conduct](http://contributor-covenant.org/version/1/1/0/) that applies
-to communication around the project.
