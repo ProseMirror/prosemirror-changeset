@@ -1,3 +1,9 @@
+## 1.0.4 (2018-09-24)
+
+### Bug fixes
+
+Fixes an issue where `addSteps` could produce invalid change sets when a new step's deleted range overlapped with an incompatible previous deletion.
+
 ## 1.0.3 (2017-11-10)
 
 ### Bug fixes
