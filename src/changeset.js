@@ -139,15 +139,19 @@ export class ChangeSet {
     // Restore the pos and slice on deleted spans that have been
     // updated, and merge deleted slices with adjacent insertions when
     // possible.
-    for (let i = 0, j = 0; i < deleted.length; i++) {
-      let span = deleted[i], merge = false
+    for (let i = 0, j = 0, movedFrom = -1, movedTo = -1; i < deleted.length; i++) {
+      let span = deleted[i], merge = false, origPos
       if (!span.slice) {
         let pos = map.map(span.from, -1)
         for (let k = 0; k < maps.length; k++) pos = maps[k].map(pos, -1)
-        deleted[i] = span = new DeletedSpan(span.from, span.to, span.data, pos,
+        origPos = pos
+        deleted[i] = span = new DeletedSpan(span.from, span.to, span.data, pos == movedFrom ? movedTo : pos,
                                             this.config.doc.slice(span.from, span.to))
         merge = true
       } else {
+        origPos = span.pos
+        if (span.pos == movedFrom)
+          deleted[i] = span = new DeletedSpan(span.from, span.to, span.data, movedTo, span.slice)
         merge = newBoundaries.indexOf(span.pos) > -1
       }
 
@@ -181,10 +185,18 @@ export class ChangeSet {
           if (fromB < toB)
             insertedPieces.push(new Span(fromB, toB, insSpan.data))
         }
+
+        // When there are multiple (incompatible) deletions at this
+        // position, make sure the pos of the next ones is moved
+        // forward to account for 'resolved' inserted content, or
+        // they'll be left hanging in a position where they shouldn't
+        // be.
+        movedFrom = origPos
+        movedTo = insertedPieces.length ? insertedPieces[0].from : insSpan.to
+
         deleted.splice(i, 1, ...deletedPieces)
         i += deletedPieces.length - 1
         inserted.splice(j, 1, ...insertedPieces)
-        j += insertedPieces.length
       }
     }
 

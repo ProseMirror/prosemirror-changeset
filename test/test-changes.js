@@ -1,5 +1,5 @@
 const ist = require("ist")
-const {schema, doc, p} = require("prosemirror-test-builder")
+const {schema, doc, p, blockquote, h1} = require("prosemirror-test-builder")
 const {Transform, Mapping} = require("prosemirror-transform")
 
 const {ChangeSet} = require("..")
@@ -101,6 +101,11 @@ describe("ChangeSet", () => {
     tr => tr.insert(4, schema.text(" ")),
     tr => tr.insert(5, schema.text("three"))
   ], null, {1: "one "}))
+
+  it("doesn't get confused by split deletions", find(doc(blockquote(h1("one"), p("two three"))), [
+    tr => tr.delete(7, 11),
+    tr => tr.replaceWith(0, 14, blockquote(h1("one"), p("three")))
+  ], null, {7: "two "}, true))
 })
 
 function find(doc, build, insertions, deletions, sep) {
@@ -116,7 +121,6 @@ function find(doc, build, insertions, deletions, sep) {
     })
 
     let {deleted, inserted} = set
-
     ist(JSON.stringify(inserted.map(i => [i.from, i.to])),
         JSON.stringify(Object.keys(insertions || {}).map(k => {
           let pos = /\D/.test(k) ? mapping.map(doc.tag[k], -1) : +k
