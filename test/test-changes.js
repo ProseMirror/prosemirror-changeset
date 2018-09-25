@@ -106,6 +106,13 @@ describe("ChangeSet", () => {
     tr => tr.delete(7, 11),
     tr => tr.replaceWith(0, 14, blockquote(h1("one"), p("three")))
   ], null, {7: "two "}, true))
+
+  it("doesn't get confused by multiply split deletions", find(doc(blockquote(h1("one"), p("two three"))), [
+    tr => tr.delete(14, 16),
+    tr => tr.delete(7, 11),
+    tr => tr.delete(3, 5),
+    tr => tr.replaceWith(0, 10, blockquote(h1("o"), p("thr")))
+  ], null, {3: "ne", 5: "two ", 8: "ee"}, true))
 })
 
 function find(doc, build, insertions, deletions, sep) {
