@@ -127,6 +127,37 @@ describe("ChangeSet", () => {
     tr => tr.delete(2, 12),
     tr => tr.replaceWith(2, 2, schema.text("PujTKqvPrX"))
   ], {1: 3}, {11: "zAp"}, [1, 2, 2, 2]))
+
+  it("fuzz issue 1", find(doc(p("hzwiKqBPzn")), [
+    tr => tr.delete(3, 7),
+    tr => tr.replaceWith(5, 5, schema.text("LH")),
+    tr => tr.replaceWith(6, 6, schema.text("uE")),
+    tr => tr.delete(1, 6),
+    tr => tr.delete(3, 6)
+  ], {1: 2}, [[1, "hz"], [1, "wiKq"], [1, "BP"], [1, "zn"]], [0, 1, 0, 1, 0]))
+
+  it("fuzz issue 2", find(doc(p("eAMISWgauf")), [
+    tr => tr.delete(5, 10),
+    tr => tr.replaceWith(5, 5, schema.text("KkM")),
+    tr => tr.replaceWith(3, 3, schema.text("UDO")),
+    tr => tr.delete(1, 12),
+    tr => tr.replaceWith(1, 1, schema.text("eAUDOMIKkMf")),
+    tr => tr.delete(5, 8),
+    tr => tr.replaceWith(3, 3, schema.text("qX"))
+  ], {3: 7}, [[3, "MI"], [3, "SWgau"]], [2, 0, 0, 0, 0, 0, 0]))
+
+  it("fuzz issue 3", find(doc(p("hfxjahnOuH")), [
+    tr => tr.delete(1, 5),
+    tr => tr.replaceWith(3, 3, schema.text("X")),
+    tr => tr.delete(1, 8),
+    tr => tr.replaceWith(1, 1, schema.text("ahXnOuH")),
+    tr => tr.delete(2, 4),
+    tr => tr.replaceWith(2, 2, schema.text("tn")),
+    tr => tr.delete(5, 7),
+    tr => tr.delete(1, 6),
+    tr => tr.replaceWith(1, 1, schema.text("atnnH")),
+    tr => tr.delete(2, 6)
+  ], {1: 1}, [[1, "hfxj"], [1, "a"], [1, "h"], [1, "n"], [1, "Ou"], [1, "H"]], [1, 0, 1, 1, 1, 1, 1, 0, 0, 0]))
 })
 
 function find(doc, build, insertions, deletions, sep) {
@@ -148,6 +179,7 @@ function find(doc, build, insertions, deletions, sep) {
           return [pos, pos + insertions[k]]
         })))
     ist(JSON.stringify(deleted.map(d => [d.pos, d.slice.content.textBetween(0, d.slice.content.size)])),
-        JSON.stringify(Object.keys(deletions || {}).map(k => [/\D/.test(k) ? mapping.map(doc.tag[k], -1) : +k, deletions[k]])))
+        JSON.stringify(Array.isArray(deletions) ? deletions :
+                       Object.keys(deletions || {}).map(k => [/\D/.test(k) ? mapping.map(doc.tag[k], -1) : +k, deletions[k]])))
   }
 }
