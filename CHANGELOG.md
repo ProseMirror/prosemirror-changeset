@@ -1,3 +1,9 @@
+## 1.0.5 (2018-09-25)
+
+### Bug fixes
+
+Fix another issue where overlapping changes that can't be merged could produce a corrupt change set.
+
 ## 1.0.4 (2018-09-24)
 
 ### Bug fixes
