@@ -113,6 +113,13 @@ describe("ChangeSet", () => {
     tr => tr.delete(3, 5),
     tr => tr.replaceWith(0, 10, blockquote(h1("o"), p("thr")))
   ], null, {3: "ne", 5: "two ", 8: "ee"}, true))
+
+  it("won't lose the order of overlapping changes", find(doc(p("12345")), [
+    tr => tr.delete(4, 5),
+    tr => tr.replaceWith(2, 2, schema.text("a")),
+    tr => tr.delete(1, 6),
+    tr => tr.replaceWith(1, 1, schema.text("1a235"))
+  ], {2: 1}, {5: "4"}, [0, 0, 1, 1]))
 })
 
 function find(doc, build, insertions, deletions, sep) {
@@ -122,7 +129,7 @@ function find(doc, build, insertions, deletions, sep) {
     build.forEach((build, i) => {
       let tr = new Transform(curDoc)
       build(tr, (name, assoc=-1) => tr.mapping.map(mapping.map(doc.tag[name], assoc), assoc))
-      set = set.addSteps(tr.doc, tr.mapping.maps, sep ? i : 0)
+      set = set.addSteps(tr.doc, tr.mapping.maps, !sep ? 0 : Array.isArray(sep) ? sep[i] : i)
       mapping.appendMapping(tr.mapping)
       curDoc = tr.doc
     })

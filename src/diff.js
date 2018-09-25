@@ -1,7 +1,7 @@
 // Convert the given range of a fragment to tokens, where node open
 // tokens are encoded as strings holding the node name, characters as
 // their character code, and node close tokens as -1.
-function tokens(frag, start, end, target) {
+export function tokens(frag, start, end, target) {
   for (let i = 0, off = 0; i < frag.childCount; i++) {
     let child = frag.child(i), endOff = off + child.nodeSize
     let from = Math.max(off, start), to = Math.min(endOff, end)
@@ -44,14 +44,8 @@ function minUnchanged(sizeA, sizeB) {
   return Math.min(15, Math.max(2, Math.floor(Math.min(sizeA, sizeB) / 10)))
 }
 
-// : (Fragment, Fragment, number, number, number) → [Change]
-export function computeDiff(a, fromA, toA, b, fromB, toB) {
-  if (fromA == toA || fromB == toB) {
-    if (fromA == toA && fromB == toB) return []
-    return [new Change(fromA, toA, fromB, toB)]
-  }
-
-  let tokA = tokens(a, fromA, toA, []), tokB = tokens(b, fromB, toB, [])
+// : ([any], [any]) → [Change]
+export function computeDiff(tokA, tokB) {
   let lenA = tokA.length, lenB = tokB.length
   // Scan from both sides to cheaply eliminate work
   let start = 0, endA = lenA, endB = lenB
@@ -62,7 +56,7 @@ export function computeDiff(a, fromA, toA, b, fromB, toB) {
   // the remaining region as the diff
   if (endA == start || endB == start || (endA == endB && endA == start + 1) ||
       (endA - start) * (endB - start) > MAX_DIFF_COMPLEXITY)
-    return [new Change(fromA + start, fromA + endA, fromB + start, fromB + endB)]
+    return [new Change(start, endA, start, endB)]
 
   // Longest common subsequence algorithm, based on
   // https://en.wikipedia.org/wiki/Longest_common_subsequence_problem#Code_for_the_dynamic_programming_solution
@@ -83,7 +77,7 @@ export function computeDiff(a, fromA, toA, b, fromB, toB) {
     }
   }
 
-  let result = [], offA = fromA + start, offB = fromB + start
+  let result = [], offA = start, offB = start
   let minSpan = minUnchanged(rows, cols)
   for (let x = cols, y = rows, cur = null, index = table.length - 1; x > 0 || y > 0;) {
     let startX = x, startY = y

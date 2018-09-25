@@ -1,7 +1,7 @@
 import {StepMap} from "prosemirror-transform"
-import {computeDiff} from "./diff"
+import {computeDiff, tokens} from "./diff"
 import {Span} from "./span"
-export {Span, computeDiff}
+export {Span}
 
 // ::- Used to represent a deletion.
 export class DeletedSpan extends Span {
@@ -139,65 +139,77 @@ export class ChangeSet {
     // Restore the pos and slice on deleted spans that have been
     // updated, and merge deleted slices with adjacent insertions when
     // possible.
-    for (let i = 0, j = 0, movedFrom = -1, movedTo = -1; i < deleted.length; i++) {
-      let span = deleted[i], merge = false, origPos
+    for (let i = 0; i < deleted.length; i++) {
+      let span = deleted[i]
       if (!span.slice) {
         let pos = map.map(span.from, -1)
         for (let k = 0; k < maps.length; k++) pos = maps[k].map(pos, -1)
-        origPos = pos
-        deleted[i] = span = new DeletedSpan(span.from, span.to, span.data, pos == movedFrom ? movedTo : pos,
+        deleted[i] = span = new DeletedSpan(span.from, span.to, span.data, pos,
                                             this.config.doc.slice(span.from, span.to))
-        merge = true
-      } else {
-        origPos = span.pos
-        if (span.pos == movedFrom)
-          deleted[i] = span = new DeletedSpan(span.from, span.to, span.data, movedTo, span.slice)
-        merge = newBoundaries.indexOf(span.pos) > -1
       }
+    }
+
+    // FIXME don't diff at unchanged boundaries
+    for (let i = 0, j = 0; i < deleted.length; i++) {
+      let startI = i, here = [deleted[i]], pos = here[0].pos
+      while (i < deleted.length - 1 && deleted[i + 1].pos == pos) here.push(deleted[++i])
 
       // Check for adjacent insertions/deletions with compatible data
       // that fully or partially undo each other, and shrink or delete
       // them to clean up the output.
       let touches = -1
-      if (merge) for (; j < inserted.length; j++) {
+      for (; j < inserted.length; j++) {
         let next = inserted[j]
-        if (next.from > span.pos) break
-        if (next.from < span.pos) continue
-        if (this.config.compare(span.data, next.data)) {
-          touches = j
-          break
-        }
+        if (next.from > pos) break
+        if (next.from < pos) continue
+        // If any of the deleted spans at this position are compatible
+        // with this inserted span, use it
+        for (let k = 0; k < here.length; k++)
+          if (this.config.compare(here[k].data, next.data)) touches = j
+        break
+      }
+      if (touches == -1) continue
+
+      let insSpan = inserted[touches]
+      let insTokens = tokens(newDoc.content, insSpan.from, insSpan.to, [])
+      let delTokens = []
+      for (let k = 0; k < here.length; k++) {
+        let {slice, data} = here[k]
+        if (this.config.compare(data, insSpan.data))
+          tokens(slice.content, slice.openStart, slice.content.size - slice.openEnd, delTokens)
+        else // Intentionally invalid tokens so that they won't match anything
+          for (let l = slice.size - 1; l >= 0; l--) delTokens.push(-2)
       }
 
-      maybeMerge: if (touches > -1) {
-        let {slice} = span, insSpan = inserted[touches]
-        let diff = computeDiff(slice.content, slice.openStart, slice.content.size - slice.openEnd,
-                               newDoc.content, insSpan.from, insSpan.to)
-        // If they are completely different, don't do anything
-        if (diff.length == 1 && diff[0].fromB == insSpan.from && diff[0].toB == insSpan.to) break maybeMerge
+      let diff = computeDiff(delTokens, insTokens)
+      // Fast path: If they are completely different and there's only
+      // one deletion involved, don't do anything
+      if (here.length == 1 && diff.length == 1 && diff[0].fromB == 0 && diff[0].toB == insTokens.length)
+        continue
 
-        let deletedPieces = [], sliceBase = span.from - slice.openStart, insertedPieces = []
-        for (let k = 0; k < diff.length; k++) {
-          let {fromA, toA, fromB, toB} = diff[k]
-          if (fromA < toA)
-            deletedPieces.push(new DeletedSpan(sliceBase + fromA, sliceBase + toA, span.data, fromB,
-                                               this.config.doc.slice(sliceBase + fromA, sliceBase + toA)))
-          if (fromB < toB)
-            insertedPieces.push(new Span(fromB, toB, insSpan.data))
+      let deletedPieces = [], insertedPieces = []
+      for (let k = 0; k < diff.length; k++) {
+        let {fromA, toA, fromB, toB} = diff[k]
+        if (fromA < toA) {
+          // Divide the different tokens over the corresponding deleted spans
+          for (let l = 0, tok = 0; l < here.length; l++) {
+            let span = here[l], end = tok + span.slice.size
+            if (end > fromA && tok < toA) { // Overlaps with this change
+              let docFrom = span.from + Math.max(0, fromA - tok), docTo = span.from + Math.min(toA, end) - tok
+              deletedPieces.push(new DeletedSpan(docFrom, docTo, span.data, insSpan.from + fromB,
+                                                 this.config.doc.slice(docFrom, docTo)))
+            }
+            tok = end
+          }
         }
-
-        // When there are multiple (incompatible) deletions at this
-        // position, make sure the pos of the next ones is moved
-        // forward to account for 'resolved' inserted content, or
-        // they'll be left hanging in a position where they shouldn't
-        // be.
-        movedFrom = origPos
-        movedTo = insertedPieces.length ? insertedPieces[0].from : insSpan.to
-
-        deleted.splice(i, 1, ...deletedPieces)
-        i += deletedPieces.length - 1
-        inserted.splice(j, 1, ...insertedPieces)
+        if (fromB < toB)
+          insertedPieces.push(new Span(insSpan.from + fromB, insSpan.from + toB, insSpan.data))
       }
+
+      deleted.splice(startI, here.length, ...deletedPieces)
+      i = startI + deletedPieces.length - 1
+      inserted.splice(touches, 1, ...insertedPieces)
+      j += insertedPieces.length
     }
 
     return new ChangeSet(this.config, inserted, deleted)
@@ -214,3 +226,7 @@ export class ChangeSet {
     return new ChangeSet(config, [], [])
   }
 }
+
+// Exported for testing
+ChangeSet.computeDiff = computeDiff
+ChangeSet.tokens = tokens
