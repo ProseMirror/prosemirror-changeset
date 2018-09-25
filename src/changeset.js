@@ -1,4 +1,3 @@
-import {StepMap} from "prosemirror-transform"
 import {computeDiff, tokens} from "./diff"
 import {Span} from "./span"
 export {Span}
@@ -12,6 +11,23 @@ export class DeletedSpan extends Span {
     // :: Slice The deleted content.
     this.slice = slice
   }
+}
+
+let mapTouched = false
+function mapStrict(ranges, pos, assoc, inverted) {
+  let diff = 0, oldIndex = inverted ? 2 : 1, newIndex = inverted ? 1 : 2
+  for (let i = 0; i < ranges.length; i += 3) {
+    let start = ranges[i] - (inverted ? diff : 0)
+    if (start > pos) break
+    let oldSize = ranges[i + oldIndex], newSize = ranges[i + newIndex], end = start + oldSize
+    if (pos <= end) {
+      mapTouched = true
+      return start + diff + (assoc < 0 ? 0 : newSize)
+    }
+    diff += newSize - oldSize
+  }
+  mapTouched = false
+  return pos + diff
 }
 
 // ::- An changeset tracks the changes to a document from a given
@@ -32,25 +48,22 @@ export class ChangeSet {
   }
 
   getMap() {
-    let ranges = []
+    let ranges = [], lastEnd = -1
     for (let iI = 0, iD = 0, off = 0;;) {
       let ins = iI == this.inserted.length ? null : this.inserted[iI]
       let del = iD == this.deleted.length ? null : this.deleted[iD]
-      if (ins == null && del == null) return new StepMap(ranges)
+      if (ins == null && del == null) return ranges
       if (del == null || (ins != null && ins.from < del.pos)) {
         let size = ins.to - ins.from
-        ranges.push(ins.from + off, 0, size)
+        if (lastEnd == ins.from + off) ranges[ranges.length - 1] += size
+        else ranges.push(ins.from + off, 0, size)
         off -= size
         iI++
-      } else if (ins && ins.from == del.pos) {
-        let dSize = del.to - del.from, iSize = ins.to - ins.from
-        ranges.push(del.pos + off, dSize, iSize)
-        off += dSize - iSize
-        iI++
-        iD++
       } else {
         let size = del.to - del.from
-        ranges.push(del.pos + off, size, 0)
+        if (lastEnd == del.pos + off) ranges[ranges.length - 2] += size
+        else ranges.push(del.pos + off, size, 0)
+        lastEnd = del.pos + off + size
         off += size
         iD++
       }
@@ -88,37 +101,50 @@ export class ChangeSet {
     if (maps.length == 0) return this
 
     let inserted = [], deleted = []
-    let map = this.getMap(), mapI = map.invert()
+    let map = this.getMap()
+    let touchedDeletions = []
 
     // Map existing inserted and deleted spans forward
-    for (let i = 0; i < this.inserted.length; i++) {
+    for (let i = 0, prev; i < this.inserted.length; i++) {
       let span = this.inserted[i], {from, to} = span
       for (let j = 0; j < maps.length && to > from; j++) {
-        from = maps[j].map(from, 1)
-        to = maps[j].map(to, -1)
+        from = mapStrict(maps[j].ranges, from, 1)
+        to = mapStrict(maps[j].ranges, to, -1)
+      }
+      if (inserted.length && (prev = inserted[inserted.length - 1]).to >= from) {
+        if (this.config.compare(prev.data, span.data)) {
+          inserted[inserted.length - 1] = new Span(prev.from, to, this.config.combine(prev.data, span.data))
+          touchedDeletions.push(prev.from, to)
+          continue
+        } else if (prev.to > from) {
+          touchedDeletions.push(from)
+          from = prev.to
+        }
       }
       if (to > from) inserted.push(from != span.from || to != span.to ? new Span(from, to, span.data) : span)
     }
     for (let i = 0; i < this.deleted.length; i++) {
-      let span = this.deleted[i], pos = span.pos
-      for (let j = 0; j < maps.length; j++) pos = maps[j].map(pos, -1)
+      let span = this.deleted[i], pos = span.pos, touched = false
+      for (let j = 0; j < maps.length; j++) {
+        pos = mapStrict(maps[j].ranges, pos, -1)
+        if (mapTouched) touched = true
+      }
+      if (touched) touchedDeletions.push(pos)
       deleted.push(pos == span.pos ? span : new DeletedSpan(span.from, span.to, span.data, pos, span.slice))
     }
 
     // Add spans for new steps.
-    let newBoundaries = [] // Used to make sure new insertions are checked for merging
     for (let i = 0, dI = 0; i < maps.length; i++, dI++) {
       // Map deletions backward to the original document, and add them
       // to `deleted`
       maps[i].forEach((fromA, toA, fromB, toB) => {
         for (let j = i - 1; j >= 0 && toA > fromA; j--) {
-          let inv = maps[j].invert()
-          fromA = inv.map(fromA, 1)
-          toA = inv.map(toA, -1)
+          fromA = mapStrict(maps[j].ranges, fromA, 1, true)
+          toA = mapStrict(maps[j].ranges, toA, -1, true)
         }
         if (toA > fromA) {
-          fromA = mapI.map(fromA, 1)
-          toA = mapI.map(toA, -1)
+          fromA = mapStrict(map, fromA, 1, true)
+          toA = mapStrict(map, toA, -1, true)
           if (toA > fromA)
             Span.addBelow(deleted, fromA, toA, Array.isArray(data) ? data[dI] : data, this.config)
         }
@@ -126,33 +152,37 @@ export class ChangeSet {
         // Map insertions forward to the current one, and add them to
         // `inserted`.
         for (let j = i + 1; j < maps.length && toB > fromB; j++) {
-          fromB = maps[j].map(fromB, 1)
-          toB = maps[j].map(toB, -1)
+          fromB = mapStrict(maps[j].ranges, fromB, 1)
+          toB = mapStrict(maps[j].ranges, toB, -1)
         }
-        if (toB > fromB) {
-          newBoundaries.push(fromB, toB)
+        if (toB > fromB)
           Span.add(inserted, fromB, toB, Array.isArray(data) ? data[dI] : data, this.config)
-        }
       })
     }
 
     // Restore the pos and slice on deleted spans that have been
-    // updated, and merge deleted slices with adjacent insertions when
-    // possible.
+    // updated
     for (let i = 0; i < deleted.length; i++) {
-      let span = deleted[i]
-      if (!span.slice) {
-        let pos = map.map(span.from, -1)
+      let span = deleted[i], pos = span.pos, slice = span.slice
+      if (!slice || touchedDeletions.indexOf(pos) > -1) {
+        if (!slice) slice = this.config.doc.slice(span.from, span.to)
+        pos = mapStrict(map, span.from, -1)
         for (let k = 0; k < maps.length; k++) pos = maps[k].map(pos, -1)
-        deleted[i] = span = new DeletedSpan(span.from, span.to, span.data, pos,
-                                            this.config.doc.slice(span.from, span.to))
+        for (let j = 0; j < inserted.length; j++) {
+          let {from, to} = inserted[j]
+          if (from < pos && to >= pos) pos = from
+        }
+        touchedDeletions.push(pos)
       }
+      if (pos != span.pos || slice != span.slice)
+        deleted[i] = new DeletedSpan(span.from, span.to, span.data, pos, slice)
     }
 
-    // FIXME don't diff at unchanged boundaries
-    for (let i = 0, j = 0; i < deleted.length; i++) {
-      let startI = i, here = [deleted[i]], pos = here[0].pos
-      while (i < deleted.length - 1 && deleted[i + 1].pos == pos) here.push(deleted[++i])
+    // Merge deleted slices with adjacent insertions when possible.
+    for (let i = 0, j = 0; i < deleted.length;) {
+      let startI = i, pos = deleted[i].pos, here = []
+      while (i < deleted.length && deleted[i].pos == pos) here.push(deleted[i++])
+      if (touchedDeletions.indexOf(pos) < 0) continue
 
       // Check for adjacent insertions/deletions with compatible data
       // that fully or partially undo each other, and shrink or delete
@@ -207,7 +237,7 @@ export class ChangeSet {
       }
 
       deleted.splice(startI, here.length, ...deletedPieces)
-      i = startI + deletedPieces.length - 1
+      i = startI + deletedPieces.length
       inserted.splice(touches, 1, ...insertedPieces)
       j += insertedPieces.length
     }

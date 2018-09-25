@@ -120,6 +120,13 @@ describe("ChangeSet", () => {
     tr => tr.delete(1, 6),
     tr => tr.replaceWith(1, 1, schema.text("1a235"))
   ], {2: 1}, {5: "4"}, [0, 0, 1, 1]))
+
+  it("properly maps deleted positions", find(doc(p("jTKqvPrzApX")), [
+    tr => tr.delete(8, 11),
+    tr => tr.replaceWith(1, 1, schema.text("MPu")),
+    tr => tr.delete(2, 12),
+    tr => tr.replaceWith(2, 2, schema.text("PujTKqvPrX"))
+  ], {1: 3}, {11: "zAp"}, [1, 2, 2, 2]))
 })
 
 function find(doc, build, insertions, deletions, sep) {
