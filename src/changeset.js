@@ -245,6 +245,20 @@ export class ChangeSet {
     return new ChangeSet(this.config, inserted, deleted)
   }
 
+  // :: (mapDel: (from: number, to: number, pos: number, data: any) → any,
+  //     mapIns: (from: number, to: number, data: any) → any) → ChangeSet
+  // Map the span's data values in the given set through a function
+  // and construct a new set with the resulting data.
+  map(mapDel, mapIns) {
+    return new ChangeSet(this.config, this.inserted.map(span => {
+      let data = mapIns(span.from, span.to, span.data)
+      return data === span.data ? span : new Span(span.from, span.to, data)
+    }), this.deleted.map(span => {
+      let data = mapDel(span.from, span.to, span.pos, span.data)
+      return data == span.data ? span : new DeletedSpan(span.from, span.to, data, span.pos, span.slice)
+    }))
+  }
+
   // :: (Node, options: ?{compare: ?(a: any, b: any) → boolean, combine: ?(a: any, b: any) → any}) → ChangeSet
   // Create a changeset with the given base object and
   // configuration. The `compare` and `combine` options should be

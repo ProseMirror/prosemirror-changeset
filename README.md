@@ -73,6 +73,10 @@ insertions/deletions that (partially) undo each other.
    tokens might be matched during simplification depending on the
    boundaries of the current changed ranges.
 
+ * **`map`**`(mapDel: fn(from: number, to: number, pos: number, data: any) → any, mapIns: fn(from: number, to: number, data: any) → any) → ChangeSet`\
+   Map the span's data values in the given set through a function
+   and construct a new set with the resulting data.
+
  * `static `**`create`**`(doc: Node, options: ?{compare: ?fn(a: any, b: any) → boolean, combine: ?fn(a: any, b: any) → any} = {}) → ChangeSet`\
    Create a changeset with the given base object and
    configuration. The `compare` and `combine` options should be
