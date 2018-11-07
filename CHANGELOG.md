@@ -1,3 +1,9 @@
+## 1.1.0 (2018-11-07)
+
+### New features
+
+Add a new method, `ChangeSet.map` to update the data associated with changed ranges.
+
 ## 1.0.5 (2018-09-25)
 
 ### Bug fixes
