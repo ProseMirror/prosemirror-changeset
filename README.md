@@ -77,6 +77,13 @@ insertions/deletions that (partially) undo each other.
    Map the span's data values in the given set through a function
    and construct a new set with the resulting data.
 
+ * **`changedRange`**`(b: ChangeSet, maps: ?[StepMap]) → ?{from: number, to: number}`\
+   Compare two changesets and return the range in which they are
+   changed, if any. If the document changed between the maps, pass
+   the maps for the steps that changed it as second argument, and
+   make sure the method is called on the old set and passed the new
+   set. The returned positions will be in new document coordinates.
+
  * `static `**`create`**`(doc: Node, options: ?{compare: ?fn(a: any, b: any) → boolean, combine: ?fn(a: any, b: any) → any} = {}) → ChangeSet`\
    Create a changeset with the given base object and
    configuration. The `compare` and `combine` options should be

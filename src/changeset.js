@@ -259,7 +259,7 @@ export class ChangeSet {
     }))
   }
 
-  // :: (ChangeSet, ?StepMap[]) → ?{from: number, to: number}
+  // :: (ChangeSet, ?[StepMap]) → ?{from: number, to: number}
   // Compare two changesets and return the range in which they are
   // changed, if any. If the document changed between the maps, pass
   // the maps for the steps that changed it as second argument, and
