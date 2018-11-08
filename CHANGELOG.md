@@ -1,3 +1,9 @@
+## 1.2.0 (2018-11-08)
+
+### New features
+
+The new `changedRange` method can be used to compare two change sets and find out which range has changed.
+
 ## 1.1.0 (2018-11-07)
 
 ### New features
