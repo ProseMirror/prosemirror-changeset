@@ -259,6 +259,61 @@ export class ChangeSet {
     }))
   }
 
+  // :: (ChangeSet, ?StepMap[]) → ?{from: number, to: number}
+  // Compare two changesets and return the range in which they are
+  // changed, if any. If the document changed between the maps, pass
+  // the maps for the steps that changed it as second argument, and
+  // make sure the method is called on the old set and passed the new
+  // set. The returned positions will be in new document coordinates.
+  changedRange(b, maps) {
+    if (b == this) return null
+    let touched = maps && touchedRange(maps)
+    let moved = touched ? (touched.toB - touched.fromB) - (touched.toA - touched.fromA) : 0
+    function map(p) {
+      return !touched || p <= touched.fromA ? p : p + moved
+    }
+
+    let from = touched ? touched.fromB : 1e9, to = touched ? touched.toB : -1e9
+    function add(start, end = start) {
+      from = Math.min(start, from); to = Math.max(end, to)
+    }
+
+    let delA = this.deleted, delB = b.deleted
+    for (let iA = 0, iB = 0; iA < delA.length || iB < delB.length;) {
+      let spanA = delA[iA], spanB = delB[iB]
+      if (spanA && spanB && spanA.data === spanB.data && map(spanA.pos) == spanB.pos) { iA++; iB++ }
+      else if (spanA && (!spanB || map(spanA.pos) < spanB.pos)) { add(map(spanA.pos)); iA++ }
+      else { add(spanB.pos); iB++ }
+    }
+
+    let insA = this.inserted, insB = b.inserted
+    let pos = 0, activeA = null, activeB = null
+    function advance(to) {
+      while (pos < to) {
+        let next = Math.min(to, activeA ? map(activeA.to) : 1e9, activeB ? activeB.to : 1e9)
+        if ((activeA && activeA.data) !== (activeB && activeB.data)) add(pos, next)
+        if (activeA && map(activeA.to) == next) activeA = null
+        if (activeB && activeB.to == next) activeB = null
+        pos = to
+      }
+    }
+    for (let iA = 0, iB = 0, pos = 0; iA < insA.length || iB < insB.length;) {
+      let spanA = insA[iA], spanB = insB[iB]
+      if (spanA && (!spanB || spanB.from > map(spanA.from))) {
+        advance(map(spanA.from))
+        activeA = spanA
+        iA++
+      } else {
+        advance(spanB.from)
+        activeB = spanB
+        iB++
+      }
+    }
+    advance(Math.max(pos, activeA ? map(activeA.to) : 0, activeB ? activeB.to : 0))
+
+    return from <= to ? {from, to} : null
+  }
+
   // :: (Node, options: ?{compare: ?(a: any, b: any) → boolean, combine: ?(a: any, b: any) → any}) → ChangeSet
   // Create a changeset with the given base object and
   // configuration. The `compare` and `combine` options should be
@@ -274,3 +329,26 @@ export class ChangeSet {
 // Exported for testing
 ChangeSet.computeDiff = computeDiff
 ChangeSet.tokens = tokens
+
+function endRange(maps) {
+  let from = 1e9, to = -1e9
+  for (let i = 0; i < maps.length; i++) {
+    let map = maps[i]
+    if (from != 1e9) {
+      from = map.map(from, -1)
+      to = map.map(to, 1)
+    }
+    map.forEach((_s, _e, start, end) => {
+      from = Math.min(from, start)
+      to = Math.max(to, end)
+    })
+  }
+  return from == 1e9 ? null : {from, to}
+}
+
+function touchedRange(maps) {
+  let b = endRange(maps)
+  if (!b) return null
+  let a = endRange(maps.map(m => m.invert()).reverse())
+  return {fromA: a.from, toA: a.to, fromB: b.from, toB: b.to}
+}
