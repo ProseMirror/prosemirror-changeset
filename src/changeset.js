@@ -297,7 +297,7 @@ export class ChangeSet {
         pos = to
       }
     }
-    for (let iA = 0, iB = 0, pos = 0; iA < insA.length || iB < insB.length;) {
+    for (let iA = 0, iB = 0; iA < insA.length || iB < insB.length;) {
       let spanA = insA[iA], spanB = insB[iB]
       if (spanA && (!spanB || spanB.from > map(spanA.from))) {
         advance(map(spanA.from))

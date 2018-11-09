@@ -1,6 +1,6 @@
 const ist = require("ist")
-const {schema, doc, p, blockquote, h1} = require("prosemirror-test-builder")
-const {Transform, Mapping} = require("prosemirror-transform")
+const {schema, doc, p} = require("prosemirror-test-builder")
+const {Transform} = require("prosemirror-transform")
 
 const {ChangeSet} = require("..")
 
