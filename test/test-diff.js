@@ -28,6 +28,10 @@ describe("computeDiff", () => {
   it("ignores single-letter unchanged parts", () =>
      test(doc(p("abcdef")), doc(p("axydzf")), [2, 6, 2, 6]))
 
+  it("ignores matching substrings in longer diffs", () =>
+     test(doc(p("One two three")), doc(p("One"), p("And another long paragraph that has wo and ee in it")),
+          [4, 14, 4, 57]))
+
   it("finds deletions", () =>
      test(doc(p("abc"), p("def")), doc(p("ac"), p("d")),
           [2, 3, 2, 2], [7, 9, 6, 6]))
@@ -46,13 +50,17 @@ describe("computeDiff", () => {
      test(doc(p("a" + "x".repeat(1000) + "b")), doc(p("b" + "x".repeat(1000) + "a")),
           [1, 1003, 1, 1003]))
 
-  it("finds huge deletions", () =>
-     test(doc(p("abbc")), doc(p("a" + "x".repeat(500) + "bb" + "x".repeat(500) + "c")),
-          [2, 2, 2, 502], [4, 4, 504, 1004]))
+  it("finds huge deletions", () => {
+     let xs = "x".repeat(200), bs = "b".repeat(20)
+     test(doc(p("a" + bs + "c")), doc(p("a" + xs + bs + xs + "c")),
+          [2, 2, 2, 202], [22, 22, 222, 422])
+  })
 
-  it("finds huge insertions", () =>
-     test(doc(p("a" + "x".repeat(500) + "bb" + "x".repeat(500) + "c")), doc(p("abbc")),
-          [2, 502, 2, 2], [504, 1004, 4, 4]))
+  it("finds huge insertions", () => {
+     let xs = "x".repeat(200), bs = "b".repeat(20)
+     test(doc(p("a" + xs + bs + xs + "c")), doc(p("a" + bs + "c")),
+          [2, 202, 2, 2], [222, 422, 22, 22])
+  })
 
   it("can handle ambiguous diffs", () =>
      test(doc(p("abcbcd")), doc(p("abcd")), [4, 6, 4, 4]))

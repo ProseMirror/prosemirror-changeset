@@ -33,7 +33,7 @@ export class Change {
 const LEN_MASK = 0x1fffffff, FLAG_SHIFT = 29
 const FLAG_DEL = 1 << FLAG_SHIFT, FLAG_INS = 2 << FLAG_SHIFT, FLAG_SAME = 3 << FLAG_SHIFT
 
-const MAX_DIFF_COMPLEXITY = 10000
+const MAX_DIFF_COMPLEXITY = 20000
 
 // This obscure mess of constants computes the minimum length of an
 // unchanged range (not at the start/end of the compared content). The
@@ -41,7 +41,7 @@ const MAX_DIFF_COMPLEXITY = 10000
 // get a diff soup of coincidentally identical letters when replacing
 // a paragraph.
 function minUnchanged(sizeA, sizeB) {
-  return Math.min(15, Math.max(2, Math.floor(Math.min(sizeA, sizeB) / 10)))
+  return Math.min(15, Math.max(2, Math.floor(Math.max(sizeA, sizeB) / 10)))
 }
 
 // : ([any], [any]) → [Change]
@@ -71,28 +71,31 @@ export function computeDiff(tokA, tokB) {
       } else {
         let del = x == 0 ? 0 : table[index - 1] & LEN_MASK
         let ins = y == 0 ? 0 : table[index - cols] & LEN_MASK
-        table[index] = del < ins ? ins | FLAG_INS : del | FLAG_DEL
+        table[index] = x == 0 || del < ins ? ins | FLAG_INS : del | FLAG_DEL
       }
       index++
     }
   }
 
-  let result = [], offA = start, offB = start
+  let changes = [], offA = start, offB = start
   let minSpan = minUnchanged(rows, cols)
   for (let x = cols, y = rows, cur = null, index = table.length - 1; x > 0 || y > 0;) {
     let startX = x, startY = y
     let flag = x == 0 ? FLAG_INS : y == 0 ? FLAG_DEL : table[index] & ~LEN_MASK
 
     if (flag == FLAG_SAME) {
-      x--, y--
-      index -= cols + 1
-      if (cur && (cur.fromA >= x + offA + minSpan || cur.fromB >= y + offB + minSpan)) cur = null
+      // Advance through further same edges
+      do {
+        x--, y--
+        index -= cols + 1
+      } while (x > 0 && y > 0 && (table[index] & ~LEN_MASK) == FLAG_SAME)
+      if (cur && startX - x >= minSpan) cur = null
     } else {
       if (flag == FLAG_DEL) x--, index--
       else y--, index -= cols
       if (cur) cur.fromA = x + offA, cur.fromB = y + offB
-      else result.push(cur = new Change(x + offA, startX + offA, y + offB, startY + offB))
+      else changes.push(cur = new Change(x + offA, startX + offA, y + offB, startY + offB))
     }
   }
-  return result.reverse()
+  return changes.reverse()
 }
