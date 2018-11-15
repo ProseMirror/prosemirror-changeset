@@ -1,3 +1,9 @@
+## 1.2.1 (2018-11-15)
+
+### Bug fixes
+
+Properly apply the heuristics for ignoring short matches when diffing, and adjust those heuristics to more agressively weed out tiny matches in large changes.
+
 ## 1.2.0 (2018-11-08)
 
 ### New features
