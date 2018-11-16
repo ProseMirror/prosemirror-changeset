@@ -33,7 +33,7 @@ export class Change {
 const LEN_MASK = 0x1fffffff, FLAG_SHIFT = 29
 const FLAG_DEL = 1 << FLAG_SHIFT, FLAG_INS = 2 << FLAG_SHIFT, FLAG_SAME = 3 << FLAG_SHIFT
 
-const MAX_DIFF_COMPLEXITY = 20000
+const MAX_DIFF_COMPLEXITY = 1e6
 
 // This obscure mess of constants computes the minimum length of an
 // unchanged range (not at the start/end of the compared content). The
