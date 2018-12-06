@@ -22,8 +22,8 @@ describe("computeDiff", () => {
           [4, 6, 4, 4]))
 
   it("finds multiple changes", () =>
-     test(doc(p("foo"), p("bar")), doc(p("fgo"), p("bur")),
-          [2, 3, 2, 3], [7, 8, 7, 8]))
+     test(doc(p("foo"), p("---bar")), doc(p("fgo"), p("---bur")),
+          [2, 4, 2, 4], [10, 11, 10, 11]))
 
   it("ignores single-letter unchanged parts", () =>
      test(doc(p("abcdef")), doc(p("axydzf")), [2, 6, 2, 6]))
@@ -45,10 +45,6 @@ describe("computeDiff", () => {
 
   it("ignores attributes", () =>
      test(doc(h1("x")), doc(h2("x"))))
-
-  it("doesn't compute huge diffs", () =>
-     test(doc(p("a" + "x".repeat(1000) + "b")), doc(p("b" + "x".repeat(1000) + "a")),
-          [1, 1003, 1, 1003]))
 
   it("finds huge deletions", () => {
      let xs = "x".repeat(200), bs = "b".repeat(20)
