@@ -119,6 +119,33 @@ export class ChangeSet {
     return from <= to ? {from, to} : null
   }
 
+  // :: ((fromA: number, toA: number, posB: number, data: any) → void)
+  // Iterate over the deleted ranges in the change set. `posB` refers
+  // to the position in the current document at which the deletion
+  // occurred, and `fromA` to `toA` is the range in the old document
+  // that was deleted.
+  deletedSpans(f) {
+    for (let i = 0; i < this.changes.length; i++) {
+      let range = this.changes[i]
+      for (let j = 0, pos = range.fromA; j < range.deleted.length; j++) {
+        let span = range.deleted[j]
+        f(pos, pos += span.length, range.fromB, span.data)
+      }
+    }
+  }
+
+  // :: ((fromB: number, toB: number, data: any) → void)
+  // Iterate over the inserted ranges in the change set.
+  insertedSpans(f) {
+    for (let i = 0; i < this.changes.length; i++) {
+      let range = this.changes[i]
+      for (let j = 0, pos = range.fromA; j < range.inserted.length; j++) {
+        let span = range.inserted[j]
+        f(pos, pos += span.length, span.data)
+      }
+    }
+  }
+
   // :: (Node, ?(a: any, b: any) → any) → ChangeSet
   // Create a changeset with the given base object and configuration.
   // The `combine` function is used to compare and combine metadata—it
