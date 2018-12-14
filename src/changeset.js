@@ -1,73 +1,16 @@
-import {computeDiff, tokens} from "./diff"
-import {Span} from "./span"
-export {Span}
+import {computeDiff} from "./diff"
+import {Change, Span} from "./change"
+export {Change, Span}
 
-// ::- Used to represent a deletion.
-export class DeletedSpan extends Span {
-  constructor(from, to, data, pos, slice) {
-    super(from, to, data)
-    // :: number The position of the deletion in the current document.
-    this.pos = pos
-    // :: Slice The deleted content.
-    this.slice = slice
-  }
-}
-
-let mapTouched = false
-function mapStrict(ranges, pos, assoc, inverted) {
-  let diff = 0, oldIndex = inverted ? 2 : 1, newIndex = inverted ? 1 : 2
-  for (let i = 0; i < ranges.length; i += 3) {
-    let start = ranges[i] - (inverted ? diff : 0)
-    if (start > pos) break
-    let oldSize = ranges[i + oldIndex], newSize = ranges[i + newIndex], end = start + oldSize
-    if (pos <= end) {
-      mapTouched = true
-      return start + diff + (assoc < 0 ? 0 : newSize)
-    }
-    diff += newSize - oldSize
-  }
-  mapTouched = false
-  return pos + diff
-}
-
-// ::- An changeset tracks the changes to a document from a given
+// ::- A change set tracks the changes to a document from a given
 // point in the past. It condenses a number of step maps down to a
-// flat sequence of insertions and deletions, and merges adjacent
-// insertions/deletions that (partially) undo each other.
+// flat sequence of replacements, and simplifies replacments that
+// partially undo themselves by comparing their content.
 export class ChangeSet {
-  constructor(config, inserted, deleted) {
+  constructor(config, changes) {
     this.config = config
-    // :: [Span]
-    // Inserted regions. Their `from`/`to` point into the current
-    // document.
-    this.inserted = inserted
-    // :: [DeletedSpan]
-    // Deleted ranges. Their `from`/`to` point into the old document,
-    // and their `pos` into the new.
-    this.deleted = deleted
-  }
-
-  getMap() {
-    let ranges = [], lastEnd = -1
-    for (let iI = 0, iD = 0, off = 0;;) {
-      let ins = iI == this.inserted.length ? null : this.inserted[iI]
-      let del = iD == this.deleted.length ? null : this.deleted[iD]
-      if (ins == null && del == null) return ranges
-      if (del == null || (ins != null && ins.from < del.pos)) {
-        let size = ins.to - ins.from
-        if (lastEnd == ins.from + off) ranges[ranges.length - 1] += size
-        else ranges.push(ins.from + off, 0, size)
-        off -= size
-        iI++
-      } else {
-        let size = del.to - del.from
-        if (lastEnd == del.pos + off) ranges[ranges.length - 2] += size
-        else ranges.push(del.pos + off, size, 0)
-        lastEnd = del.pos + off + size
-        off += size
-        iD++
-      }
-    }
+    // :: [Change] Replaced regions.
+    this.changes = changes
   }
 
   // :: (Node, [StepMap], union<[any], any>) → ChangeSet
@@ -84,178 +27,65 @@ export class ChangeSet {
   addSteps(newDoc, maps, data) {
     // This works by inspecting the position maps for the changes,
     // which indicate what parts of the document were replaced by new
-    // content, and the size of that new content. It maps all replaced
-    // ranges backwards, to the start of the range of changes, and all
-    // inserted ranges forward, to the end.
+    // content, and the size of that new content. It uses these to
+    // build up Change objects.
     //
-    // The replaced ranges are added so that earlier deletions take
-    // precedence (the first person to delete something is the one
-    // responsible for its deletion), and the inserted ranges are
-    // added so that later ones take precedence (the last person to
-    // insert somewhere is responsible for the text there).
+    // These change objects are put in sets and merged together using
+    // Change.merge, giving us the changes created by the new steps.
+    // Those changes can then be merged with the existing set of
+    // changes.
     //
-    // The original document is then used to get a slice for each
-    // deleted range, and the positions of those ranges are mapped
-    // forward to positions in the resulting document.
+    // For each change that was touched by the new steps, we recompute
+    // a diff to try to minimize the change by dropping matching
+    // pieces of the old and new document from the change.
 
-    if (maps.length == 0) return this
-
-    let inserted = [], deleted = []
-    let map = this.getMap()
-    let touchedDeletions = []
-
-    // Map existing inserted and deleted spans forward
-    for (let i = 0, prev; i < this.inserted.length; i++) {
-      let span = this.inserted[i], {from, to} = span
-      for (let j = 0; j < maps.length && to > from; j++) {
-        from = mapStrict(maps[j].ranges, from, 1)
-        to = mapStrict(maps[j].ranges, to, -1)
-      }
-      if (inserted.length && (prev = inserted[inserted.length - 1]).to >= from) {
-        if (this.config.compare(prev.data, span.data)) {
-          inserted[inserted.length - 1] = new Span(prev.from, to, this.config.combine(prev.data, span.data))
-          touchedDeletions.push(prev.from, to)
-          continue
-        } else if (prev.to > from) {
-          touchedDeletions.push(from)
-          from = prev.to
-        }
-      }
-      if (to > from) inserted.push(from != span.from || to != span.to ? new Span(from, to, span.data) : span)
-    }
-    for (let i = 0; i < this.deleted.length; i++) {
-      let span = this.deleted[i], pos = span.pos, touched = false
-      for (let j = 0; j < maps.length; j++) {
-        pos = mapStrict(maps[j].ranges, pos, -1)
-        if (mapTouched) touched = true
-      }
-      if (touched) touchedDeletions.push(pos)
-      deleted.push(pos == span.pos ? span : new DeletedSpan(span.from, span.to, span.data, pos, span.slice))
-    }
-
+    let stepChanges = []
     // Add spans for new steps.
-    for (let i = 0, dI = 0; i < maps.length; i++, dI++) {
-      // Map deletions backward to the original document, and add them
-      // to `deleted`
+    for (let i = 0; i < maps.length; i++) {
+      let d = Array.isArray(data) ? data[i] : data
       maps[i].forEach((fromA, toA, fromB, toB) => {
-        for (let j = i - 1; j >= 0 && toA > fromA; j--) {
-          fromA = mapStrict(maps[j].ranges, fromA, 1, true)
-          toA = mapStrict(maps[j].ranges, toA, -1, true)
-        }
-        if (toA > fromA) {
-          fromA = mapStrict(map, fromA, 1, true)
-          toA = mapStrict(map, toA, -1, true)
-          if (toA > fromA)
-            Span.addBelow(deleted, fromA, toA, Array.isArray(data) ? data[dI] : data, this.config)
-        }
+        stepChanges.push(new Change(fromA, toA, fromB, toB,
+                                    fromA == toA ? Span.none : [new Span(toA - fromA, d)],
+                                    fromB == toB ? Span.none : [new Span(toB - fromB, d)]))
 
-        // Map insertions forward to the current one, and add them to
-        // `inserted`.
-        for (let j = i + 1; j < maps.length && toB > fromB; j++) {
-          fromB = mapStrict(maps[j].ranges, fromB, 1)
-          toB = mapStrict(maps[j].ranges, toB, -1)
-        }
-        if (toB > fromB)
-          Span.add(inserted, fromB, toB, Array.isArray(data) ? data[dI] : data, this.config)
       })
     }
+    if (stepChanges.length == 0) return this
 
-    // Restore the pos and slice on deleted spans that have been
-    // updated
-    for (let i = 0; i < deleted.length; i++) {
-      let span = deleted[i], pos = span.pos, slice = span.slice
-      if (!slice || touchedDeletions.indexOf(pos) > -1) {
-        if (!slice) slice = this.config.doc.slice(span.from, span.to)
-        pos = mapStrict(map, span.from, -1)
-        for (let k = 0; k < maps.length; k++) pos = maps[k].map(pos, -1)
-        for (let j = 0; j < inserted.length; j++) {
-          let {from, to} = inserted[j]
-          if (from < pos && to >= pos) pos = from
-        }
-        touchedDeletions.push(pos)
-      }
-      if (pos != span.pos || slice != span.slice)
-        deleted[i] = new DeletedSpan(span.from, span.to, span.data, pos, slice)
-    }
+    let newChanges = mergeAll(stepChanges, this.config.combine)
+    let changes = Change.merge(this.changes, newChanges, this.config.combine)
 
-    // Merge deleted slices with adjacent insertions when possible.
-    for (let i = 0, j = 0; i < deleted.length;) {
-      let startI = i, pos = deleted[i].pos, here = []
-      while (i < deleted.length && deleted[i].pos == pos) here.push(deleted[i++])
-      if (touchedDeletions.indexOf(pos) < 0) continue
+    // Minimize changes when possible
+    for (let i = 0; i < changes.length; i++) {
+      let change = changes[i]
+      if (change.fromA == change.toA || change.fromB == change.toB ||
+          // Only look at changes that touch newly added changed ranges
+          !newChanges.some(r => r.toB > change.fromB && r.fromB < change.toB)) continue
+      let diff = computeDiff(this.config.doc.content, newDoc.content, change)
 
-      // Check for adjacent insertions/deletions with compatible data
-      // that fully or partially undo each other, and shrink or delete
-      // them to clean up the output.
-      let touches = -1
-      for (; j < inserted.length; j++) {
-        let next = inserted[j]
-        if (next.from > pos) break
-        if (next.from < pos) continue
-        // If any of the deleted spans at this position are compatible
-        // with this inserted span, use it
-        for (let k = 0; k < here.length; k++)
-          if (this.config.compare(here[k].data, next.data)) touches = j
-        break
-      }
-      if (touches == -1) continue
-
-      let insSpan = inserted[touches]
-      let insTokens = tokens(newDoc.content, insSpan.from, insSpan.to, [])
-      let delTokens = []
-      for (let k = 0; k < here.length; k++) {
-        let {slice, data} = here[k]
-        if (this.config.compare(data, insSpan.data))
-          tokens(slice.content, slice.openStart, slice.content.size - slice.openEnd, delTokens)
-        else // Intentionally invalid tokens so that they won't match anything
-          for (let l = slice.size - 1; l >= 0; l--) delTokens.push(-2)
-      }
-
-      let diff = computeDiff(delTokens, insTokens)
-      // Fast path: If they are completely different and there's only
-      // one deletion involved, don't do anything
-      if (here.length == 1 && diff.length == 1 && diff[0].fromB == 0 && diff[0].toB == insTokens.length)
+      // Fast path: If they are completely different, don't do anything
+      if (diff.length == 1 && diff[0].fromB == 0 && diff[0].toB == change.toB - change.fromB)
         continue
 
-      let deletedPieces = [], insertedPieces = []
-      for (let k = 0; k < diff.length; k++) {
-        let {fromA, toA, fromB, toB} = diff[k]
-        if (fromA < toA) {
-          // Divide the different tokens over the corresponding deleted spans
-          for (let l = 0, tok = 0; l < here.length; l++) {
-            let span = here[l], end = tok + span.slice.size
-            if (end > fromA && tok < toA) { // Overlaps with this change
-              let docFrom = span.from + Math.max(0, fromA - tok), docTo = span.from + Math.min(toA, end) - tok
-              deletedPieces.push(new DeletedSpan(docFrom, docTo, span.data, insSpan.from + fromB,
-                                                 this.config.doc.slice(docFrom, docTo)))
-            }
-            tok = end
-          }
-        }
-        if (fromB < toB)
-          insertedPieces.push(new Span(insSpan.from + fromB, insSpan.from + toB, insSpan.data))
+      if (diff.length == 1) {
+        changes[i] = diff[0]
+      } else {
+        changes.splice(i, 1, ...diff)
+        i += diff.length - 1
       }
-
-      deleted.splice(startI, here.length, ...deletedPieces)
-      i = startI + deletedPieces.length
-      inserted.splice(touches, 1, ...insertedPieces)
-      j += insertedPieces.length
     }
 
-    return new ChangeSet(this.config, inserted, deleted)
+    return new ChangeSet(this.config, changes)
   }
 
-  // :: (mapDel: (from: number, to: number, pos: number, data: any) → any,
-  //     mapIns: (from: number, to: number, data: any) → any) → ChangeSet
+  // :: (f: (range: Change) → any) → ChangeSet
   // Map the span's data values in the given set through a function
   // and construct a new set with the resulting data.
-  map(mapDel, mapIns) {
-    return new ChangeSet(this.config, this.inserted.map(span => {
-      let data = mapIns(span.from, span.to, span.data)
-      return data === span.data ? span : new Span(span.from, span.to, data)
-    }), this.deleted.map(span => {
-      let data = mapDel(span.from, span.to, span.pos, span.data)
-      return data == span.data ? span : new DeletedSpan(span.from, span.to, data, span.pos, span.slice)
+  map(f) {
+    return new ChangeSet(this.config, this.changes.map(change => {
+      let data = f(change)
+      return data === change.data ? change :
+        new Change(change.fromA, change.toA, change.fromB, change.toB, data)
     }))
   }
 
@@ -278,57 +108,38 @@ export class ChangeSet {
       from = Math.min(start, from); to = Math.max(end, to)
     }
 
-    let delA = this.deleted, delB = b.deleted
-    for (let iA = 0, iB = 0; iA < delA.length || iB < delB.length;) {
-      let spanA = delA[iA], spanB = delB[iB]
-      if (spanA && spanB && spanA.data === spanB.data && map(spanA.pos) == spanB.pos) { iA++; iB++ }
-      else if (spanA && (!spanB || map(spanA.pos) < spanB.pos)) { add(map(spanA.pos)); iA++ }
-      else { add(spanB.pos); iB++ }
+    let rA = this.changes, rB = b.changes
+    for (let iA = 0, iB = 0; iA < rA.length && iB < rB.length;) {
+      let rangeA = rA[iA], rangeB = rB[iB]
+      if (rangeA && rangeB && sameRanges(rangeA, rangeB, map)) { iA++; iB++ }
+      else if (rangeB && (!rangeA || map(rangeA.fromB) >= rangeB.fromB)) { add(rangeB.fromB, rangeB.toB); iB++ }
+      else { add(map(rangeA.fromB), map(rangeA.toB)); iA++ }
     }
-
-    let insA = this.inserted, insB = b.inserted
-    let pos = 0, activeA = null, activeB = null
-    function advance(to) {
-      while (pos < to) {
-        let next = Math.min(to, activeA ? map(activeA.to) : 1e9, activeB ? activeB.to : 1e9)
-        if ((activeA && activeA.data) !== (activeB && activeB.data)) add(pos, next)
-        if (activeA && map(activeA.to) == next) activeA = null
-        if (activeB && activeB.to == next) activeB = null
-        pos = to
-      }
-    }
-    for (let iA = 0, iB = 0; iA < insA.length || iB < insB.length;) {
-      let spanA = insA[iA], spanB = insB[iB]
-      if (spanA && (!spanB || spanB.from > map(spanA.from))) {
-        advance(map(spanA.from))
-        activeA = spanA
-        iA++
-      } else {
-        advance(spanB.from)
-        activeB = spanB
-        iB++
-      }
-    }
-    advance(Math.max(pos, activeA ? map(activeA.to) : 0, activeB ? activeB.to : 0))
 
     return from <= to ? {from, to} : null
   }
 
-  // :: (Node, options: ?{compare: ?(a: any, b: any) → boolean, combine: ?(a: any, b: any) → any}) → ChangeSet
-  // Create a changeset with the given base object and
-  // configuration. The `compare` and `combine` options should be
-  // functions, and are used to compare and combine metadata—`compare`
-  // determines whether two spans are compatible, and when they are,
-  // `combine` will compute the metadata value for the merged span.
-  static create(doc, {compare = (a, b) => a == b, combine = a => a} = {}) {
-    let config = {compare, combine, doc}
-    return new ChangeSet(config, [], [])
+  // :: (Node, ?(a: any, b: any) → any) → ChangeSet
+  // Create a changeset with the given base object and configuration.
+  // The `combine` function is used to compare and combine metadata—it
+  // should return null when metadata isn't compatible, and a combined
+  // version for a merged range when it is.
+  static create(doc, combine = (a, b) => a === b ? a : null) {
+    return new ChangeSet({combine, doc}, [], [])
   }
 }
 
 // Exported for testing
 ChangeSet.computeDiff = computeDiff
-ChangeSet.tokens = tokens
+
+// : ([[Change]], (any, any) → any, number, number) → [Change]
+// Divide-and-conquer approach to merging a series of ranges.
+function mergeAll(ranges, combine, start = 0, end = ranges.length) {
+  if (end == start + 1) return [ranges[start]]
+  let mid = (start + end) >> 1
+  return Change.merge(mergeAll(ranges, combine, start, mid),
+                      mergeAll(ranges, combine, mid, end), combine)
+}
 
 function endRange(maps) {
   let from = 1e9, to = -1e9
@@ -351,4 +162,16 @@ function touchedRange(maps) {
   if (!b) return null
   let a = endRange(maps.map(m => m.invert()).reverse())
   return {fromA: a.from, toA: a.to, fromB: b.from, toB: b.to}
+}
+
+function sameRanges(a, b, map) {
+  return map(a.fromB) == b.fromB && map(a.toB) == b.toB &&
+    sameSpans(a.deleted, b.deleted) && sameSpans(a.inserted, b.inserted)
+}
+
+function sameSpans(a, b) {
+  if (a.length != b.length) return false
+  for (let i = 0; i < a.length; i++)
+    if (a[i].length != b[i].length || a[i].data !== b[i].data) return false
+  return true
 }

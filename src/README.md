@@ -19,8 +19,8 @@ It is possible to associate arbitrary data values with such spans, for
 example to track the user that made the change, the timestamp at which
 it was made, or the step data necessary to invert it again.
 
-@Span
+@Change
 
-@DeletedSpan
+@Span
 
 @ChangeSet

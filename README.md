@@ -19,47 +19,50 @@ It is possible to associate arbitrary data values with such spans, for
 example to track the user that made the change, the timestamp at which
 it was made, or the step data necessary to invert it again.
 
+### class Change
+
+A replaced range with metadata associated with it.
+
+ * **`fromA`**`: number`\
+   The start of the range deleted/replaced in the old
+   document.
+
+ * **`toA`**`: number`\
+   The end of the range in the old document.
+
+ * **`fromB`**`: number`\
+   The start of the range inserted in the new document.
+
+ * **`toB`**`: number`\
+   The end of the range in the new document.
+
+ * **`deleted`**`: [Span]`\
+   Data associated with the deleted content. The length
+   of these spans adds up to `this.toA - this.fromA`.
+
+ * **`inserted`**`: [Span]`\
+   Data associated with the inserted content. Length
+   adds up to `this.toB - this.toA`.
+
+
 ### class Span
 
-A document range with metadata associated with it. Used to
-track both inserted and deleted ranges, though deletions are
-represented with a subclass.
+Stores metadata for a part of a change.
 
- * **`from`**`: number`\
-   The start of this span.
+ * **`length`**`: number`
 
- * **`to`**`: number`\
-   The end of the span.
-
- * **`data`**`: any`\
-   Data associated with this span.
-
-
-### class DeletedSpan extends Span
-
-Used to represent a deletion.
-
- * **`pos`**`: number`\
-   The position of the deletion in the current document.
-
- * **`slice`**`: Slice`\
-   The deleted content.
+ * **`data`**`: any`
 
 
 ### class ChangeSet
 
-An changeset tracks the changes to a document from a given
+A change set tracks the changes to a document from a given
 point in the past. It condenses a number of step maps down to a
-flat sequence of insertions and deletions, and merges adjacent
-insertions/deletions that (partially) undo each other.
+flat sequence of replacements, and simplifies replacments that
+partially undo themselves by comparing their content.
 
- * **`inserted`**`: [Span]`\
-   Inserted regions. Their `from`/`to` point into the current
-   document.
-
- * **`deleted`**`: [DeletedSpan]`\
-   Deleted ranges. Their `from`/`to` point into the old document,
-   and their `pos` into the new.
+ * **`changes`**`: [Change]`\
+   Replaced regions.
 
  * **`addSteps`**`(newDoc: Node, maps: [StepMap], data: [any] | any) → ChangeSet`\
    Computes a new changeset by adding the given step maps and
@@ -73,7 +76,7 @@ insertions/deletions that (partially) undo each other.
    tokens might be matched during simplification depending on the
    boundaries of the current changed ranges.
 
- * **`map`**`(mapDel: fn(from: number, to: number, pos: number, data: any) → any, mapIns: fn(from: number, to: number, data: any) → any) → ChangeSet`\
+ * **`map`**`(f: fn(range: Change) → any) → ChangeSet`\
    Map the span's data values in the given set through a function
    and construct a new set with the resulting data.
 
@@ -84,11 +87,10 @@ insertions/deletions that (partially) undo each other.
    make sure the method is called on the old set and passed the new
    set. The returned positions will be in new document coordinates.
 
- * `static `**`create`**`(doc: Node, options: ?{compare: ?fn(a: any, b: any) → boolean, combine: ?fn(a: any, b: any) → any} = {}) → ChangeSet`\
-   Create a changeset with the given base object and
-   configuration. The `compare` and `combine` options should be
-   functions, and are used to compare and combine metadata—`compare`
-   determines whether two spans are compatible, and when they are,
-   `combine` will compute the metadata value for the merged span.
+ * `static `**`create`**`(doc: Node, combine: ?fn(a: any, b: any) → any) → ChangeSet`\
+   Create a changeset with the given base object and configuration.
+   The `combine` function is used to compare and combine metadata—it
+   should return null when metadata isn't compatible, and a combined
+   version for a merged range when it is.
 
 

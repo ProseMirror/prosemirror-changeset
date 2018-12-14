@@ -1,12 +1,14 @@
 const ist = require("ist")
 const {doc, p, em, strong, h1, h2} = require("prosemirror-test-builder")
 
-const {computeDiff, tokens} = require("..").ChangeSet
+const {Span, Change, ChangeSet: {computeDiff}} = require("..")
 
 describe("computeDiff", () => {
   function test(doc1, doc2, ...ranges) {
-    let diff = computeDiff(tokens(doc1.content, 0, doc1.content.size, []),
-                           tokens(doc2.content, 0, doc2.content.size, []))
+    let diff = computeDiff(doc1.content, doc2.content,
+                           new Change(0, doc1.content.size, 0, doc2.content.size,
+                                      [new Span(doc1.content.size, 0)],
+                                      [new Span(doc2.content.size, 0)]))
     ist(JSON.stringify(diff.map(r => [r.fromA, r.toA, r.fromB, r.toB])), JSON.stringify(ranges))
   }
 

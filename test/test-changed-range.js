@@ -31,14 +31,6 @@ describe("ChangeSet.changedRange", () => {
     same(set0.changedRange(set, tr.mapping.maps), {from: 2, to: 3})
   })
 
-  it("includes precise extent of the changes when spans are compatible", () => {
-    let {set0, set, tr, doc0} = mk(doc(p("abcd")), tr => tr.replaceWith(5, 5, schema.text("fg"))
-                             .replaceWith(5, 5, schema.text("e")))
-    let set1 = ChangeSet.create(doc0).addSteps(tr.docs[1], [tr.mapping.maps[0]], ["a"])
-    same(set0.changedRange(set1, [tr.mapping.maps[0]]), {from: 5, to: 7})
-    same(set1.changedRange(set, [tr.mapping.maps[1]]), {from: 5, to: 6})
-  })
-
   it("expands to cover updated spans", () => {
     let {doc0, set0, set, tr} = mk(doc(p("abcd")), tr => tr
                                    .replaceWith(2, 2, schema.text("c"))
