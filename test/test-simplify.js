@@ -1,0 +1,59 @@
+const ist = require("ist")
+const {doc, p, img} = require("prosemirror-test-builder")
+const {simplifyChanges, Change, Span} = require("..")
+
+describe("simplifyChanges", () => {
+  it("doesn't change insertion-only changes", () => test(
+    [[1, 1, 1, 2], [2, 2, 3, 4]], doc(p("hello")), [[1, 1, 1, 2], [2, 2, 3, 4]]))
+
+  it("doesn't change deletion-only changes", () => test(
+    [[1, 2, 1, 1], [3, 4, 2, 2]], doc(p("hello")), [[1, 2, 1, 1], [3, 4, 2, 2]]))
+
+  it("doesn't change single-letter-replacements", () => test(
+    [[1, 2, 1, 2]], doc(p("hello")), [[1, 2, 1, 2]]))
+
+  it("does expand multiple-letter replacements", () => test(
+    [[2, 4, 2, 4]], doc(p("hello")), [[1, 6, 1, 6]]))
+
+  it("does combine changes within the same word", () => test(
+    [[1, 3, 1, 1], [5, 5, 3, 4]], doc(p("hello")), [[1, 7, 1, 6]]))
+
+  it("expands changes to cover full words", () => test(
+    [[7, 10]], doc(p("one two three four")), [[5, 14]]))
+
+  it("doesn't expand across non-word text", () => test(
+    [[7, 10]], doc(p("one two ----- four")), [[5, 10]]))
+
+  it("treats leaf nodes as non-words", () => test(
+    [[2, 3], [6, 7]], doc(p("one", img, "two")), [[2, 3], [6, 7]]))
+
+  it("treats node boundaries as non-words", () => test(
+    [[2, 3], [7, 8]], doc(p("one"), p("two")), [[2, 3], [7, 8]]))
+
+  it("can merge stretches of changes", () => test(
+    [[2, 3], [4, 6], [8, 10], [15, 16]], doc(p("foo bar baz bug ugh")), [[1, 12], [15, 16]]))
+
+  it("properly fills in metadata", () => {
+    let simple = simplifyChanges([range([2, 3], 0), range([4, 6], 1), range([8, 9, 8, 8], 2)],
+                                 doc(p("1234567890")))
+    ist(simple.length, 1)
+    ist(JSON.stringify(simple[0].deleted.map(s => [s.length, s.data])),
+        JSON.stringify([[3, 0], [4, 1], [4, 2]]))
+    ist(JSON.stringify(simple[0].inserted.map(s => [s.length, s.data])),
+        JSON.stringify([[3, 0], [4, 1], [3, 2]]))
+  })
+})
+
+function range(array, author = 0) {
+  let [fromA, toA] = array
+  let [fromB, toB] = array.length > 2 ? array.slice(2) : array
+  return new Change(fromA, toA, fromB, toB, [new Span(toA - fromA, author)], [new Span(toB - fromB, author)])
+}
+
+function test(changes, doc, result) {
+  let ranges = changes.map(range)
+  ist(JSON.stringify(simplifyChanges(ranges, doc).map((r, i) => {
+    if (result[i] && result[i].length > 2) return [r.fromA, r.toA, r.fromB, r.toB]
+    else return [r.fromB, r.toB]
+  })), JSON.stringify(result))
+}

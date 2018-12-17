@@ -1,6 +1,7 @@
 import {computeDiff} from "./diff"
 import {Change, Span} from "./change"
 export {Change, Span}
+export {simplifyChanges} from "./simplify"
 
 // ::- A change set tracks the changes to a document from a given
 // point in the past. It condenses a number of step maps down to a

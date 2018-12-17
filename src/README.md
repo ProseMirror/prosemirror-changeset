@@ -24,3 +24,5 @@ it was made, or the step data necessary to invert it again.
 @Span
 
 @ChangeSet
+
+@simplifyChanges

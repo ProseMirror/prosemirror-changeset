@@ -103,3 +103,11 @@ partially undo themselves by comparing their content.
    version for a merged range when it is.
 
 
+ * **`simplifyChanges`**`(changes: [Change], doc: Node) → [Change]`\
+   Simplifies a set of changes for presentation. This makes the
+   assumption that having both insertions and deletions within a word
+   is confusing, and, when such changes occur without a word boundary
+   between them, they should be expanded to cover the entire set of
+   words (in the new document) they touch. An exception is made for
+   single-character replacements.
+
