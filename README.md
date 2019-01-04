@@ -90,15 +90,6 @@ partially undo themselves by comparing their content.
    make sure the method is called on the old set and passed the new
    set. The returned positions will be in new document coordinates.
 
- * **`deletedSpans`**`(f: fn(fromA: number, toA: number, posB: number, data: any) → void)`\
-   Iterate over the deleted ranges in the change set. `posB` refers
-   to the position in the current document at which the deletion
-   occurred, and `fromA` to `toA` is the range in the old document
-   that was deleted.
-
- * **`insertedSpans`**`(f: fn(fromB: number, toB: number, data: any) → void)`\
-   Iterate over the inserted ranges in the change set.
-
  * `static `**`create`**`(doc: Node, combine: ?fn(a: any, b: any) → any) → ChangeSet`\
    Create a changeset with the given base object and configuration.
    The `combine` function is used to compare and combine metadata—it
