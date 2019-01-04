@@ -48,7 +48,6 @@ export class ChangeSet {
         stepChanges.push(new Change(fromA, toA, fromB, toB,
                                     fromA == toA ? Span.none : [new Span(toA - fromA, d)],
                                     fromB == toB ? Span.none : [new Span(toB - fromB, d)]))
-
       })
     }
     if (stepChanges.length == 0) return this
@@ -78,6 +77,10 @@ export class ChangeSet {
 
     return new ChangeSet(this.config, changes)
   }
+
+  // :: Node
+  // The starting document of the change set.
+  get startDoc() { return this.config.doc }
 
   // :: (f: (range: Change) → any) → ChangeSet
   // Map the span's data values in the given set through a function
@@ -140,7 +143,7 @@ export class ChangeSet {
   insertedSpans(f) {
     for (let i = 0; i < this.changes.length; i++) {
       let range = this.changes[i]
-      for (let j = 0, pos = range.fromA; j < range.inserted.length; j++) {
+      for (let j = 0, pos = range.fromB; j < range.inserted.length; j++) {
         let span = range.inserted[j]
         f(pos, pos += span.length, span.data)
       }

@@ -76,6 +76,9 @@ partially undo themselves by comparing their content.
    tokens might be matched during simplification depending on the
    boundaries of the current changed ranges.
 
+ * **`startDoc`**`: Node`\
+   The starting document of the change set.
+
  * **`map`**`(f: fn(range: Change) → any) → ChangeSet`\
    Map the span's data values in the given set through a function
    and construct a new set with the resulting data.
