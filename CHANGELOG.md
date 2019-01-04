@@ -1,3 +1,25 @@
+## 2.0.0 (2019-01-04)
+
+### Bug fixes
+
+Solves various cases where complicated edits could corrupt the set of changes due to the mapped positions of deletions not agreeing with the mapped positions of insertions.
+
+### New features
+
+Moves to a more efficient diffing algorithm (Meyers), so that large replacements can be accurately diffed using reasonable time and memory.
+
+You can now find the original document given to a `ChangeSet` with its `startDoc` accessor.
+
+### Breaking changes
+
+The way change data is stored in `ChangeSet` objects works differently in this version. Instead of keeping deletions and insertions in separate arrays, the object holds an array of changes, which cover all the changed regions between the old and new document. Each change has start and end positions in both the old and the new document, and contains arrays of insertions and deletions within it.
+
+This representation avoids a bunch of consistency problems that existed in the old approach, where keeping positions coherent in the deletion and insertion arrays was hard.
+
+This means the `deletions` and `insertions` members in `ChangeSet` are gone, and instead there is a `changes` property which holds an array of `Change` objects. Each of these has `fromA` and `toA` properties indicating its extent in the old document, and `fromB` and `toB` properties pointing into the new document. Actual insertions and deletions are stored in `inserted` and `deleted` arrays in `Change` objects, which hold `{data, length}` objects, where the total length of deletions adds up to `toA - fromA`, and the total length of insertions to `toB - fromB`.
+
+When creating a `ChangeSet` object, you no longer need to pass separate compare and combine callbacks. Instead, these are now represented using a single function that returns a combined data value or `null` when the values are not compatible.
+
 ## 1.2.1 (2018-11-15)
 
 ### Bug fixes
