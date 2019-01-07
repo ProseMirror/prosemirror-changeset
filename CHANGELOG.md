@@ -1,3 +1,9 @@
+## 2.0.1 (2019-01-07)
+
+### Bug fixes
+
+Fixes issue in `simplifyChanges` where it sometimes returned nonsense when the inspected text wasn't at the start of the document.
+
 ## 2.0.0 (2019-01-04)
 
 ### Bug fixes
