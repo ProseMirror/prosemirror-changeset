@@ -72,13 +72,13 @@ function simplifyAdjacentChanges(changes, from, to, doc, target) {
   let text = getText(doc.content, start, end)
 
   for (let i = from; i < to; i++) {
-    let start = i, last = changes[i], deleted = last.lenA, inserted = last.lenB
+    let startI = i, last = changes[i], deleted = last.lenA, inserted = last.lenB
     while (i < to - 1) {
       let next = changes[i + 1], boundary = false
       let prevLetter = last.toB == end ? false : isLetter(text.charCodeAt(last.toB - 1 - start))
       for (let pos = last.toB; !boundary && pos < next.fromB; pos++) {
         let nextLetter = pos == end ? false : isLetter(text.charCodeAt(pos - start))
-        if ((!prevLetter || !nextLetter) && pos != changes[start].fromB) boundary = true
+        if ((!prevLetter || !nextLetter) && pos != changes[startI].fromB) boundary = true
         prevLetter = nextLetter
       }
       if (boundary) break
@@ -87,14 +87,14 @@ function simplifyAdjacentChanges(changes, from, to, doc, target) {
       i++
     }
     if (inserted > 0 && deleted > 0 && !(inserted == 1 && deleted == 1)) {
-      let from = changes[start].fromB, to = changes[i].toB
+      let from = changes[startI].fromB, to = changes[i].toB
       if (from < end && isLetter(text.charCodeAt(from - start)))
         while (from > start && isLetter(text.charCodeAt(from - 1 - start))) from--
       if (to > start && isLetter(text.charCodeAt(to - 1 - start)))
         while (to < end && isLetter(text.charCodeAt(to - start))) to++
-      target.push(fillChange(changes.slice(start, i + 1), from, to))
+      target.push(fillChange(changes.slice(startI, i + 1), from, to))
     } else {
-      for (let j = start; j <= i; j++) target.push(changes[j])
+      for (let j = startI; j <= i; j++) target.push(changes[j])
     }
   }
   return changes
