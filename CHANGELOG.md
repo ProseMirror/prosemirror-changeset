@@ -1,3 +1,9 @@
+## 2.0.2 (2019-01-08)
+
+### Bug fixes
+
+Fix a bug in simplifyChanges that only occurred when the changes weren't at the start of the document.
+
 ## 2.0.1 (2019-01-07)
 
 ### Bug fixes
