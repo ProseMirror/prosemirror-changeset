@@ -28,12 +28,12 @@ function getText(frag, start, end) {
       let from = Math.max(off, start), to = Math.min(endOff, end)
       if (from < to) {
         if (child.isText) {
-          out += child.text
+          out += child.text.slice(Math.max(0, start - off), Math.min(child.text.length, end - off))
         } else if (child.isLeaf) {
           out += " "
         } else {
           if (from == off) out += " "
-          convert(child.content, Math.max(off + 1, from) - off - 1, Math.min(endOff - 1, to) - off - 1)
+          convert(child.content, Math.max(0, from - off - 1), Math.min(child.content.size, end - off))
           if (to == endOff) out += " "
         }
       }

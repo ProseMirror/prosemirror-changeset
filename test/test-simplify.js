@@ -33,6 +33,13 @@ describe("simplifyChanges", () => {
   it("can merge stretches of changes", () => test(
     [[2, 3], [4, 6], [8, 10], [15, 16]], doc(p("foo bar baz bug ugh")), [[1, 12], [15, 16]]))
 
+  it("handles realistic word updates", () => test(
+    [[8, 8, 8, 11], [10, 15, 13, 17]], doc(p("chonic condition")), [[8, 15, 8, 17]]))
+
+  it("works when after significant content", () => test(
+    [[63, 80, 63, 83]], doc(p("one long paragraph -----"), p("two long paragraphs ------"), p("a vote against the government")),
+    [[62, 81, 62, 84]]))
+
   it("properly fills in metadata", () => {
     let simple = simplifyChanges([range([2, 3], 0), range([4, 6], 1), range([8, 9, 8, 8], 2)],
                                  doc(p("1234567890")))
