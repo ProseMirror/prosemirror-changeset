@@ -1,3 +1,9 @@
+## 2.0.3 (2019-01-09)
+
+### Bug fixes
+
+Make `simplifyChanges` merge adjacent simplified changes (which can occur when a word boundary is inserted).
+
 ## 2.0.2 (2019-01-08)
 
 ### Bug fixes
