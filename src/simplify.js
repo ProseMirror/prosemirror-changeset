@@ -86,13 +86,20 @@ function simplifyAdjacentChanges(changes, from, to, doc, target) {
       last = next
       i++
     }
+
     if (inserted > 0 && deleted > 0 && !(inserted == 1 && deleted == 1)) {
       let from = changes[startI].fromB, to = changes[i].toB
       if (from < end && isLetter(text.charCodeAt(from - start)))
         while (from > start && isLetter(text.charCodeAt(from - 1 - start))) from--
       if (to > start && isLetter(text.charCodeAt(to - 1 - start)))
         while (to < end && isLetter(text.charCodeAt(to - start))) to++
-      target.push(fillChange(changes.slice(startI, i + 1), from, to))
+      let joined = fillChange(changes.slice(startI, i + 1), from, to)
+      let last = target.length ? target[target.length - 1] : null
+      if (last && last.toA == joined.fromA)
+        target[target.length - 1] = new Change(last.fromA, joined.toA, last.fromB, joined.toB,
+                                               last.deleted.concat(joined.deleted), last.inserted.concat(joined.inserted))
+      else
+        target.push(joined)
     } else {
       for (let j = startI; j <= i; j++) target.push(changes[j])
     }

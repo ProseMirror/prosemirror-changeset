@@ -40,6 +40,10 @@ describe("simplifyChanges", () => {
     [[63, 80, 63, 83]], doc(p("one long paragraph -----"), p("two long paragraphs ------"), p("a vote against the government")),
     [[62, 81, 62, 84]]))
 
+  it("joins changes that grow together when simplifying", () => test(
+    [[1, 5, 1, 5], [7, 13, 7, 9], [20, 21, 16, 16]], doc(p('and his co-star')),
+    [[1, 13, 1, 9], [20, 21, 16, 16]]))
+
   it("properly fills in metadata", () => {
     let simple = simplifyChanges([range([2, 3], 0), range([4, 6], 1), range([8, 9, 8, 8], 2)],
                                  doc(p("1234567890")))
