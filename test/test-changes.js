@@ -67,6 +67,18 @@ describe("ChangeSet", () => {
     tr => tr.insert(3, t("ll"))
   ], []))
 
+  it("revert a deletion by inserting the character again", find(doc(p("bar")), [
+    tr => tr.delete(2, 3), // br
+    tr => tr.insert(2, t("x")), // bxr
+    tr => tr.insert(2, t("a")) // baxr
+  ], [[3, 3, 3, 4]]))
+
+  it("insert character before changed character", find(doc(p("bar")), [
+    tr => tr.delete(2, 3), // br
+    tr => tr.insert(2, t("x")), // bxr
+    tr => tr.insert(2, t("x")) // bxxr
+  ], [[2, 3, 2, 4]]))
+
   it("partially merges delete/insert from different addStep calls", find(doc(p("heljo")), [
     tr => tr.delete(3, 5),
     tr => tr.insert(3, t("ll"))
