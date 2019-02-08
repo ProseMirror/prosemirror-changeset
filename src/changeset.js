@@ -44,10 +44,14 @@ export class ChangeSet {
     // Add spans for new steps.
     for (let i = 0; i < maps.length; i++) {
       let d = Array.isArray(data) ? data[i] : data
+      let off = 0
       maps[i].forEach((fromA, toA, fromB, toB) => {
-        stepChanges.push(new Change(fromA, toA, fromB, toB,
+
+        stepChanges.push(new Change(fromA + off, toA + off, fromB, toB,
                                     fromA == toA ? Span.none : [new Span(toA - fromA, d)],
                                     fromB == toB ? Span.none : [new Span(toB - fromB, d)]))
+
+        off = (toB - fromB) - (toA - fromA)
       })
     }
     if (stepChanges.length == 0) return this
