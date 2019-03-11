@@ -120,7 +120,7 @@ export class Change {
           let next = Math.min(nextX, nextY)
           let inX = curX && pos >= curX.fromB, inY = curY && pos >= curY.fromA
           if (!inX && !inY) break
-          if (inX && pos == curX.fromB) {
+          if (inX && pos == curX.fromB && (next != curX.fromB || next == curX.toB)) {
             deleted = Span.join(deleted, curX.deleted, combine)
             toA += curX.lenA
           }
