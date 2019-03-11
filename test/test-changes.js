@@ -164,7 +164,7 @@ describe("ChangeSet", () => {
     tr => tr.replaceWith(1, 1, t("eAUDOMIKkMf")),
     tr => tr.delete(5, 8),
     tr => tr.replaceWith(3, 3, t("qX"))
-  ], [[3, 12, 3, 10, [[2, 0], [5, 2], [2, 0]], [[7, 0]]]], [2, 0, 0, 0, 0, 0, 0]))
+  ], [[3, 10, 3, 10, [[2, 0], [5, 2]], [[7, 0]]]], [2, 0, 0, 0, 0, 0, 0]))
 
   it("fuzz issue 3", find(doc(p("hfxjahnOuH")), [
     tr => tr.delete(1, 5),
