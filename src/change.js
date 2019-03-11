@@ -96,7 +96,7 @@ export class Change {
                     new Change(curX.fromA, curX.toA, curX.fromB + off, curX.toB + off,
                                curX.deleted, curX.inserted))
         curX = iX++ == x.length ? null : x[iX]
-      } else if (curY && (!curX || curY.toA < curY.fromB)) { // curY entirely in front of curX
+      } else if (curY && (!curX || curY.toA < curX.fromB)) { // curY entirely in front of curX
         let off = iX ? x[iX - 1].toB - x[iX - 1].toA : 0
         result.push(off == 0 ? curY :
                     new Change(curY.fromA - off, curY.toA - off, curY.fromB, curY.toB,
