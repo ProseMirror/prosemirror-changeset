@@ -111,7 +111,7 @@ export class ChangeSet {
       return !touched || p <= touched.fromA ? p : p + moved
     }
 
-    let from = touched ? touched.fromB : 1e9, to = touched ? touched.toB : -1e9
+    let from = touched ? touched.fromB : 2e8, to = touched ? touched.toB : -2e8
     function add(start, end = start) {
       from = Math.min(start, from); to = Math.max(end, to)
     }
@@ -150,10 +150,10 @@ function mergeAll(ranges, combine, start = 0, end = ranges.length) {
 }
 
 function endRange(maps) {
-  let from = 1e9, to = -1e9
+  let from = 2e8, to = -2e8
   for (let i = 0; i < maps.length; i++) {
     let map = maps[i]
-    if (from != 1e9) {
+    if (from != 2e8) {
       from = map.map(from, -1)
       to = map.map(to, 1)
     }
@@ -162,7 +162,7 @@ function endRange(maps) {
       to = Math.max(to, end)
     })
   }
-  return from == 1e9 ? null : {from, to}
+  return from == 2e8 ? null : {from, to}
 }
 
 function touchedRange(maps) {

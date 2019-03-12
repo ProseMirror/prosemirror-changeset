@@ -119,8 +119,8 @@ export class Change {
         // Need to have an inner loop since any number of further
         // ranges might be touching this group
         for (;;) {
-          let nextX = !curX ? 2e9 : pos >= curX.fromB ? curX.toB : curX.fromB
-          let nextY = !curY ? 2e9 : pos >= curY.fromA ? curY.toA : curY.fromA
+          let nextX = !curX ? 2e8 : pos >= curX.fromB ? curX.toB : curX.fromB
+          let nextY = !curY ? 2e8 : pos >= curY.fromA ? curY.toA : curY.fromA
           let next = Math.min(nextX, nextY)
           let inX = curX && pos >= curX.fromB, inY = curY && pos >= curY.fromA
           if (!inX && !inY) break
