@@ -1,3 +1,11 @@
+## 2.0.4 (2019-03-12)
+
+### Bug fixes
+
+Fixes an issue where steps that cause multiple changed ranges (such as `ReplaceAroundStep`) would cause invalid change sets.
+
+Fix a bug in incremental change set updates that would cause incorrect results in a number of cases.
+
 ## 2.0.3 (2019-01-09)
 
 ### Bug fixes
