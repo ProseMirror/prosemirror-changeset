@@ -42,7 +42,6 @@ describe("mergeChanges", () => {
   it("can merge replace after insert", () => test(
     [[2, 2, 2, 3]], [[2, 3, 2, 3]], [[2, 2, 2, 3]]
   ))
-
 })
 
 function range(array, author = 0) {

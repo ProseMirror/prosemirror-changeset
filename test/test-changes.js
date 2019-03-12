@@ -178,6 +178,11 @@ describe("ChangeSet", () => {
     tr => tr.replaceWith(1, 1, t("atnnH")),
     tr => tr.delete(2, 6)
   ], [[1, 11, 1, 2, [[4, 1], [1, 0], [1, 1], [1, 0], [2, 1], [1, 0]], [[1, 0]]]], [1, 0, 1, 1, 1, 1, 1, 0, 0, 0]))
+
+  it("correctly handles steps with multiple map entries", find(doc(p()), [
+    tr => tr.replaceWith(1, 1, t("ab")),
+    tr => tr.wrap(tr.doc.resolve(1).blockRange(), [{type: schema.nodes.blockquote}])
+  ], [[0, 0, 0, 1], [1, 1, 2, 4], [2, 2, 5, 6]]))
 })
 
 function find(doc, build, changes, sep) {
