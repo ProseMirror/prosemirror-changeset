@@ -112,6 +112,10 @@ export class Change {
         let fromA = Math.min(curX.fromA, curY.fromA - (iX ? x[iX - 1].toB - x[iX - 1].toA : 0)), toA = fromA
         let fromB = Math.min(curY.fromB, curX.fromB + (iY ? y[iY - 1].toB - y[iY - 1].toA : 0)), toB = fromB
         let deleted = Span.none, inserted = Span.none
+
+        // Used to prevent appending ins/del range for the same Change twice
+        let enteredX = false, enteredY = false
+
         // Need to have an inner loop since any number of further
         // ranges might be touching this group
         for (;;) {
@@ -120,24 +124,33 @@ export class Change {
           let next = Math.min(nextX, nextY)
           let inX = curX && pos >= curX.fromB, inY = curY && pos >= curY.fromA
           if (!inX && !inY) break
-          if (inX && pos == curX.fromB && (next != curX.fromB || next == curX.toB)) {
+          if (inX && pos == curX.fromB && !enteredX) {
             deleted = Span.join(deleted, curX.deleted, combine)
             toA += curX.lenA
+            enteredX = true
           }
           if (inX && !inY) {
             inserted = Span.join(inserted, Span.slice(curX.inserted, pos - curX.fromB, next - curX.fromB), combine)
             toB += next - pos
           }
-          if (inY && pos == curY.fromA) {
+          if (inY && pos == curY.fromA && !enteredY) {
             inserted = Span.join(inserted, curY.inserted, combine)
             toB += curY.lenB
+            enteredY = true
           }
           if (inY && !inX) {
             deleted = Span.join(deleted, Span.slice(curY.deleted, pos - curY.fromA, next - curY.fromA), combine)
             toA += next - pos
           }
-          if (inX && next == curX.toB) curX = iX++ == x.length ? null : x[iX]
-          if (inY && next == curY.toA) curY = iY++ == y.length ? null : y[iY]
+
+          if (inX && next == curX.toB) {
+            curX = iX++ == x.length ? null : x[iX]
+            enteredX = false
+          }
+          if (inY && next == curY.toA) {
+            curY = iY++ == y.length ? null : y[iY]
+            enteredY = false
+          }
           pos = next
         }
         if (fromA < toA || fromB < toB)
