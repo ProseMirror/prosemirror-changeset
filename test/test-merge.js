@@ -1,5 +1,4 @@
 const ist = require("ist")
-const {doc, p, img} = require("prosemirror-test-builder")
 const {Change, Span} = require("..")
 
 describe("mergeChanges", () => {
