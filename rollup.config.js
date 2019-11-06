@@ -1,7 +1,12 @@
-module.exports = {
-  input: "./src/changeset.js",
-  output: {format: "cjs", file: "dist/changeset.js"},
-  sourcemap: true,
-  plugins: [require("rollup-plugin-buble")()],
+import buble from '@rollup/plugin-buble'
+
+export default {
+  input: './src/changeset.js',
+  output: {
+    dir: 'dist',
+    format: 'cjs',
+    sourcemap: true
+  },
+  plugins: [buble()],
   external(id) { return !/^[\.\/]/.test(id) }
 }
