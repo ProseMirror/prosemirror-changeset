@@ -1,3 +1,9 @@
+## 2.1.0 (2019-11-08)
+
+### New features
+
+Add a `module` field to package json file.
+
 ## 2.0.4 (2019-03-12)
 
 ### Bug fixes
