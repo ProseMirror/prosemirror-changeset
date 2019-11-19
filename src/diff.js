@@ -35,7 +35,7 @@ function minUnchanged(sizeA, sizeB) {
   return Math.min(15, Math.max(2, Math.floor(Math.max(sizeA, sizeB) / 10)))
 }
 
-// : ([any], [any]) → [Change]
+// : (Fragment, Fragment, Change) → [Change]
 export function computeDiff(fragA, fragB, range) {
   let tokA = tokens(fragA, range.fromA, range.toA, [])
   let tokB = tokens(fragB, range.fromB, range.toB, [])
