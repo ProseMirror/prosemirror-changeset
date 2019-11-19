@@ -1,3 +1,9 @@
+## 2.1.1 (2019-11-19)
+
+### Bug fixes
+
+The file referred to in the package's `module` field now is compiled down to ES5.
+
 ## 2.1.0 (2019-11-08)
 
 ### New features
