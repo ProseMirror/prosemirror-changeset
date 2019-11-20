@@ -58,7 +58,7 @@ Stores metadata for a part of a change.
 
 A change set tracks the changes to a document from a given
 point in the past. It condenses a number of step maps down to a
-flat sequence of replacements, and simplifies replacments that
+flat sequence of replacements, and simplifies replacements that
 partially undo themselves by comparing their content.
 
  * **`changes`**`: [Change]`\
