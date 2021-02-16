@@ -1,17 +1,45 @@
+const IGNORED_ATTRS = {
+  blockId: true,
+}
+
+const getMarksString = (node) => {
+  let marksString = ''
+  let keys = Object.keys(node.marks)
+  keys.sort()
+  for (let i = 0; i < keys.length; i++) {
+    marksString += `${keys[i]}:${node.marks[keys[i]]}`
+  }
+  return marksString
+}
+
+const getAttributesString = (node) => {
+  let attrsString = ''
+  let keys = Object.keys(node.attrs)
+  keys.sort()
+  for (let i = 0; i < keys.length; i++) {
+    if (!IGNORED_ATTRS[keys[i]]) {
+      attrsString += `${keys[i]}:${node.attrs[keys[i]]}`
+    }
+  }
+  return attrsString
+}
+
 // Convert the given range of a fragment to tokens, where node open
 // tokens are encoded as strings holding the node name, characters as
 // their character code, and node close tokens as -1.
 function tokens(frag, start, end, target) {
   for (let i = 0, off = 0; i < frag.childCount; i++) {
-    let child = frag.child(i), endOff = off + child.nodeSize
-    let from = Math.max(off, start), to = Math.min(endOff, end)
+    let child = frag.child(i),
+      endOff = off + child.nodeSize
+    let from = Math.max(off, start),
+      to = Math.min(endOff, end)
     if (from < to) {
       if (child.isText) {
-        for (let j = from; j < to; j++) target.push(child.text.charCodeAt(j - off))
+        for (let j = from; j < to; j++) target.push(`${child.text.charCodeAt(j - off)}${getMarksString(child)}`)
       } else if (child.isLeaf) {
         target.push(child.type.name)
       } else {
-        if (from == off) target.push(child.type.name)
+        if (from == off) target.push(`${child.type.name}${getAttributesString(child)}`)
         tokens(child.content, Math.max(off + 1, from) - off - 1, Math.min(endOff - 1, to) - off - 1, target)
         if (to == endOff) target.push(-1)
       }
@@ -41,7 +69,9 @@ export function computeDiff(fragA, fragB, range) {
   let tokB = tokens(fragB, range.fromB, range.toB, [])
 
   // Scan from both sides to cheaply eliminate work
-  let start = 0, endA = tokA.length, endB = tokB.length
+  let start = 0,
+    endA = tokA.length,
+    endB = tokB.length
   while (start < tokA.length && start < tokB.length && tokA[start] === tokB[start]) start++
   if (start == tokA.length && start == tokB.length) return []
   while (endA > start && endB > start && tokA[endA - 1] === tokB[endB - 1]) endA--, endB--
@@ -54,45 +84,60 @@ export function computeDiff(fragA, fragB, range) {
   // See https://neil.fraser.name/writing/diff/myers.pdf and
   // https://blog.jcoglan.com/2017/02/12/the-myers-diff-algorithm-part-1/
 
-  let lenA = endA - start, lenB = endB - start
-  let max = Math.min(MAX_DIFF_SIZE, lenA + lenB), off = max + 1
+  let lenA = endA - start,
+    lenB = endB - start
+  let max = Math.min(MAX_DIFF_SIZE, lenA + lenB),
+    off = max + 1
   let history = []
   let frontier = []
   for (let len = off * 2, i = 0; i < len; i++) frontier[i] = -1
 
   for (let size = 0; size <= max; size++) {
     for (let diag = -size; diag <= size; diag += 2) {
-      let next = frontier[diag + 1 + max], prev = frontier[diag - 1 + max]
-      let x = next < prev ? prev : next + 1, y = x + diag
+      let next = frontier[diag + 1 + max],
+        prev = frontier[diag - 1 + max]
+      let x = next < prev ? prev : next + 1,
+        y = x + diag
       while (x < lenA && y < lenB && tokA[start + x] === tokB[start + y]) x++, y++
       frontier[diag + max] = x
       // Found a match
       if (x >= lenA && y >= lenB) {
         // Trace back through the history to build up a set of changed ranges.
-        let diff = [], minSpan = minUnchanged(endA - start, endB - start)
+        let diff = [],
+          minSpan = minUnchanged(endA - start, endB - start)
         // Used to add steps to a diff one at a time, back to front, merging
         // ones that are less than minSpan tokens apart
-        let fromA = -1, toA = -1, fromB = -1, toB = -1
+        let fromA = -1,
+          toA = -1,
+          fromB = -1,
+          toB = -1
         let add = (fA, tA, fB, tB) => {
           if (fromA > -1 && fromA < tA + minSpan) {
-            fromA = fA; fromB = fB
+            fromA = fA
+            fromB = fB
           } else {
-            if (fromA > -1)
-              diff.push(range.slice(fromA, toA, fromB, toB))
-            fromA = fA; toA = tA
-            fromB = fB; toB = tB
+            if (fromA > -1) diff.push(range.slice(fromA, toA, fromB, toB))
+            fromA = fA
+            toA = tA
+            fromB = fB
+            toB = tB
           }
         }
 
         for (let i = size - 1; i >= 0; i--) {
-          let next = frontier[diag + 1 + max], prev = frontier[diag - 1 + max]
-          if (next < prev) { // Deletion
+          let next = frontier[diag + 1 + max],
+            prev = frontier[diag - 1 + max]
+          if (next < prev) {
+            // Deletion
             diag--
-            x = prev + start; y = x + diag
+            x = prev + start
+            y = x + diag
             add(x, x, y, y + 1)
-          } else { // Insertion
+          } else {
+            // Insertion
             diag++
-            x = next + start; y = x + diag
+            x = next + start
+            y = x + diag
             add(x, x + 1, y, y)
           }
           frontier = history[i >> 1]
