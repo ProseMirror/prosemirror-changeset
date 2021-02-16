@@ -45,12 +45,14 @@ describe('computeDiff', () => {
 
   it('finds deletions', () => test(doc(p('abc'), p('def')), doc(p('ac'), p('d')), [2, 3, 2, 2], [7, 9, 6, 6]))
 
-  it("doesn't ignore marks", () => test(doc(p('abc')), doc(p(em('a'), strong('bc')))))
+  it("doesn't ignore marks", () => test(doc(p('abc')), doc(p('a', strong('bc'))), [2, 4, 2, 4]))
 
   it("doesn't ignore marks in diffing", () =>
-    test(doc(p('abcdefghi')), doc(p(em('x'), strong('bc'), 'defgh', em('y'))), [1, 2, 1, 2], [9, 10, 9, 10]))
+    test(doc(p('abcdefghi')), doc(p(em('x'), strong('bc'), 'defgh', em('y'))), [1, 4, 1, 4], [9, 10, 9, 10]))
 
-  it("doesn't ignore attributes", () => test(doc(h1('x')), doc(h2('x'))))
+  it("doesn't ignore all attributes", () => test(doc(h1('x')), doc(h2('x')), [0, 1, 0, 1]))
+
+  it('ignores predefined attributes', () => test(doc(h1('x', { blockId: '1' })), doc(h1('x', { blockId: '2' }))))
 
   it('finds huge deletions', () => {
     let xs = 'x'.repeat(200),
