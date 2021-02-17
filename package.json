@@ -34,6 +34,8 @@
     "build": "rollup -c",
     "watch": "rollup -c -w",
     "prepare": "npm run build",
-    "build-readme": "builddocs --name changeset --main src/README.md --format markdown src/*.js > README.md"
+    "build-readme": "builddocs --name changeset --main src/README.md --format markdown src/*.js > README.md",
+    "release": "git checkout -b release && npm run build && npm run export && git add -A && git commit -m \"Release $VERSION\" && git tag -m '' $VERSION && git push --tags && git checkout master && git branch -D release",
+    "export": "cp ./dist/* ./ && rm -rf ./node_modules"
   }
 }
