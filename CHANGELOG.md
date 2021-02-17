@@ -1,3 +1,9 @@
+## 2.1.3 (2020-02-17)
+
+### New features
+
+Update diffing logic to include mark and attribute changes
+
 ## 2.1.2 (2019-11-20)
 
 ### Bug fixes
