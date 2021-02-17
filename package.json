@@ -17,14 +17,14 @@
     "url": "git://github.com/prosemirror/prosemirror-changeset.git"
   },
   "devDependencies": {
-    "builddocs": "^0.3.0",
-    "mocha": "^3.5.3",
-    "ist": "^1.0.0",
     "@rollup/plugin-buble": "^0.21.3",
-    "rollup": "^2.26.3",
+    "builddocs": "^0.3.0",
+    "ist": "^1.0.0",
+    "mocha": "^3.5.3",
     "prosemirror-model": "^1.0.0",
     "prosemirror-test-builder": "^1.0.0",
-    "reify": "^0.12.3"
+    "reify": "^0.12.3",
+    "rollup": "^2.26.3"
   },
   "dependencies": {
     "prosemirror-transform": "^1.0.0"
