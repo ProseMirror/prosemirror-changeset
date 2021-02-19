@@ -1,7 +1,7 @@
-import {computeDiff} from "./diff"
-import {Change, Span} from "./change"
-export {Change, Span}
-export {simplifyChanges} from "./simplify"
+import { computeDiff } from './diff'
+import { Change, Span } from './change'
+export { Change, Span }
+export { simplifyChanges } from './simplify'
 
 // ::- A change set tracks the changes to a document from a given
 // point in the past. It condenses a number of step maps down to a
@@ -25,7 +25,7 @@ export class ChangeSet {
   // than adding all those changes at once, since different document
   // tokens might be matched during simplification depending on the
   // boundaries of the current changed ranges.
-  addSteps(newDoc, maps, data) {
+  addSteps(newDoc, maps, data, steps) {
     // This works by inspecting the position maps for the changes,
     // which indicate what parts of the document were replaced by new
     // content, and the size of that new content. It uses these to
@@ -45,14 +45,34 @@ export class ChangeSet {
     for (let i = 0; i < maps.length; i++) {
       let d = Array.isArray(data) ? data[i] : data
       let off = 0
-      maps[i].forEach((fromA, toA, fromB, toB) => {
+      if (!maps[i].ranges.length) {
+        const markStep = steps[i]
+        stepChanges.push(
+          new Change(
+            markStep.from + off,
+            markStep.to + off,
+            markStep.from,
+            markStep.to,
+            [new Span(markStep.to - markStep.from, d)],
+            [new Span(markStep.to - markStep.from, d)],
+          ),
+        )
+      } else {
+        maps[i].forEach((fromA, toA, fromB, toB) => {
+          stepChanges.push(
+            new Change(
+              fromA + off,
+              toA + off,
+              fromB,
+              toB,
+              fromA == toA ? Span.none : [new Span(toA - fromA, d)],
+              fromB == toB ? Span.none : [new Span(toB - fromB, d)],
+            ),
+          )
 
-        stepChanges.push(new Change(fromA + off, toA + off, fromB, toB,
-                                    fromA == toA ? Span.none : [new Span(toA - fromA, d)],
-                                    fromB == toB ? Span.none : [new Span(toB - fromB, d)]))
-
-        off = (toB - fromB) - (toA - fromA)
-      })
+          off = toB - fromB - (toA - fromA)
+        })
+      }
     }
     if (stepChanges.length == 0) return this
 
@@ -62,14 +82,17 @@ export class ChangeSet {
     // Minimize changes when possible
     for (let i = 0; i < changes.length; i++) {
       let change = changes[i]
-      if (change.fromA == change.toA || change.fromB == change.toB ||
-          // Only look at changes that touch newly added changed ranges
-          !newChanges.some(r => r.toB > change.fromB && r.fromB < change.toB)) continue
+      if (
+        change.fromA == change.toA ||
+        change.fromB == change.toB ||
+        // Only look at changes that touch newly added changed ranges
+        !newChanges.some((r) => r.toB > change.fromB && r.fromB < change.toB)
+      )
+        continue
       let diff = computeDiff(this.config.doc.content, newDoc.content, change)
 
       // Fast path: If they are completely different, don't do anything
-      if (diff.length == 1 && diff[0].fromB == 0 && diff[0].toB == change.toB - change.fromB)
-        continue
+      if (diff.length == 1 && diff[0].fromB == 0 && diff[0].toB == change.toB - change.fromB) continue
 
       if (diff.length == 1) {
         changes[i] = diff[0]
@@ -84,17 +107,21 @@ export class ChangeSet {
 
   // :: Node
   // The starting document of the change set.
-  get startDoc() { return this.config.doc }
+  get startDoc() {
+    return this.config.doc
+  }
 
   // :: (f: (range: Change) → any) → ChangeSet
   // Map the span's data values in the given set through a function
   // and construct a new set with the resulting data.
   map(f) {
-    return new ChangeSet(this.config, this.changes.map(change => {
-      let data = f(change)
-      return data === change.data ? change :
-        new Change(change.fromA, change.toA, change.fromB, change.toB, data)
-    }))
+    return new ChangeSet(
+      this.config,
+      this.changes.map((change) => {
+        let data = f(change)
+        return data === change.data ? change : new Change(change.fromA, change.toA, change.fromB, change.toB, data)
+      }),
+    )
   }
 
   // :: (ChangeSet, ?[StepMap]) → ?{from: number, to: number}
@@ -106,25 +133,36 @@ export class ChangeSet {
   changedRange(b, maps) {
     if (b == this) return null
     let touched = maps && touchedRange(maps)
-    let moved = touched ? (touched.toB - touched.fromB) - (touched.toA - touched.fromA) : 0
+    let moved = touched ? touched.toB - touched.fromB - (touched.toA - touched.fromA) : 0
     function map(p) {
       return !touched || p <= touched.fromA ? p : p + moved
     }
 
-    let from = touched ? touched.fromB : 2e8, to = touched ? touched.toB : -2e8
+    let from = touched ? touched.fromB : 2e8,
+      to = touched ? touched.toB : -2e8
     function add(start, end = start) {
-      from = Math.min(start, from); to = Math.max(end, to)
+      from = Math.min(start, from)
+      to = Math.max(end, to)
     }
 
-    let rA = this.changes, rB = b.changes
-    for (let iA = 0, iB = 0; iA < rA.length && iB < rB.length;) {
-      let rangeA = rA[iA], rangeB = rB[iB]
-      if (rangeA && rangeB && sameRanges(rangeA, rangeB, map)) { iA++; iB++ }
-      else if (rangeB && (!rangeA || map(rangeA.fromB) >= rangeB.fromB)) { add(rangeB.fromB, rangeB.toB); iB++ }
-      else { add(map(rangeA.fromB), map(rangeA.toB)); iA++ }
+    let rA = this.changes,
+      rB = b.changes
+    for (let iA = 0, iB = 0; iA < rA.length && iB < rB.length; ) {
+      let rangeA = rA[iA],
+        rangeB = rB[iB]
+      if (rangeA && rangeB && sameRanges(rangeA, rangeB, map)) {
+        iA++
+        iB++
+      } else if (rangeB && (!rangeA || map(rangeA.fromB) >= rangeB.fromB)) {
+        add(rangeB.fromB, rangeB.toB)
+        iB++
+      } else {
+        add(map(rangeA.fromB), map(rangeA.toB))
+        iA++
+      }
     }
 
-    return from <= to ? {from, to} : null
+    return from <= to ? { from, to } : null
   }
 
   // :: (Node, ?(a: any, b: any) → any) → ChangeSet
@@ -132,8 +170,8 @@ export class ChangeSet {
   // The `combine` function is used to compare and combine metadata—it
   // should return null when metadata isn't compatible, and a combined
   // version for a merged range when it is.
-  static create(doc, combine = (a, b) => a === b ? a : null) {
-    return new ChangeSet({combine, doc}, [], [])
+  static create(doc, combine = (a, b) => (a === b ? a : null)) {
+    return new ChangeSet({ combine, doc }, [], [])
   }
 }
 
@@ -145,12 +183,12 @@ ChangeSet.computeDiff = computeDiff
 function mergeAll(ranges, combine, start = 0, end = ranges.length) {
   if (end == start + 1) return [ranges[start]]
   let mid = (start + end) >> 1
-  return Change.merge(mergeAll(ranges, combine, start, mid),
-                      mergeAll(ranges, combine, mid, end), combine)
+  return Change.merge(mergeAll(ranges, combine, start, mid), mergeAll(ranges, combine, mid, end), combine)
 }
 
 function endRange(maps) {
-  let from = 2e8, to = -2e8
+  let from = 2e8,
+    to = -2e8
   for (let i = 0; i < maps.length; i++) {
     let map = maps[i]
     if (from != 2e8) {
@@ -162,24 +200,27 @@ function endRange(maps) {
       to = Math.max(to, end)
     })
   }
-  return from == 2e8 ? null : {from, to}
+  return from == 2e8 ? null : { from, to }
 }
 
 function touchedRange(maps) {
   let b = endRange(maps)
   if (!b) return null
-  let a = endRange(maps.map(m => m.invert()).reverse())
-  return {fromA: a.from, toA: a.to, fromB: b.from, toB: b.to}
+  let a = endRange(maps.map((m) => m.invert()).reverse())
+  return { fromA: a.from, toA: a.to, fromB: b.from, toB: b.to }
 }
 
 function sameRanges(a, b, map) {
-  return map(a.fromB) == b.fromB && map(a.toB) == b.toB &&
-    sameSpans(a.deleted, b.deleted) && sameSpans(a.inserted, b.inserted)
+  return (
+    map(a.fromB) == b.fromB &&
+    map(a.toB) == b.toB &&
+    sameSpans(a.deleted, b.deleted) &&
+    sameSpans(a.inserted, b.inserted)
+  )
 }
 
 function sameSpans(a, b) {
   if (a.length != b.length) return false
-  for (let i = 0; i < a.length; i++)
-    if (a[i].length != b[i].length || a[i].data !== b[i].data) return false
+  for (let i = 0; i < a.length; i++) if (a[i].length != b[i].length || a[i].data !== b[i].data) return false
   return true
 }
