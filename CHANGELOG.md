@@ -1,3 +1,9 @@
+## 2.1.5 (2020-02-19)
+
+### New features
+
+Update add step logic to not ignore add/remove mark steps
+
 ## 2.1.3 (2020-02-17)
 
 ### New features
