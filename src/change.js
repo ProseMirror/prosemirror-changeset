@@ -91,7 +91,7 @@ export class Change {
     }
   }
 
-  fromJSON(value) {
+  static fromJSON(value) {
     return new Change(
       value.fromA,
       value.toA,
