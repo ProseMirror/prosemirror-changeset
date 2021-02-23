@@ -165,6 +165,19 @@ export class ChangeSet {
     return from <= to ? { from, to } : null
   }
 
+  toJSON() {
+    return {
+      changes: this.changes.map((c) => c.toJSON()),
+    }
+  }
+
+  static fromJSON(doc, value, combine) {
+    return new ChangeSet(
+      { combine, doc },
+      value.changes.map((c) => Change.fromJSON(c)),
+    )
+  }
+
   // :: (Node, ?(a: any, b: any) → any) → ChangeSet
   // Create a changeset with the given base object and configuration.
   // The `combine` function is used to compare and combine metadata—it

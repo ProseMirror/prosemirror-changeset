@@ -11,12 +11,21 @@ export class Span {
     return length == this.length ? this : new Span(length, this.data)
   }
 
+  toJSON() {
+    return { length: this.length, data: this.data }
+  }
+
+  static fromJSON(value) {
+    return new Span(value.length, value.data)
+  }
+
   static slice(spans, from, to) {
     if (from == to) return Span.none
     if (from == 0 && to == Span.len(spans)) return spans
     let result = []
     for (let i = 0, off = 0; off < to; i++) {
-      let span = spans[i], end = off + span.length
+      let span = spans[i],
+        end = off + span.length
       let overlap = Math.min(to, end) - Math.max(from, off)
       if (overlap > 0) result.push(span.cut(overlap))
       off = end
@@ -64,16 +73,45 @@ export class Change {
     this.inserted = inserted
   }
 
-  get lenA() { return this.toA - this.fromA }
-  get lenB() { return this.toB - this.fromB }
+  get lenA() {
+    return this.toA - this.fromA
+  }
+  get lenB() {
+    return this.toB - this.fromB
+  }
+
+  toJSON() {
+    return {
+      fromA: this.fromA,
+      toA: this.toA,
+      fromB: this.fromB,
+      toB: this.toB,
+      deleted: this.deleted.map((s) => s.toJSON()),
+      inserted: this.inserted.map((s) => s.toJSON()),
+    }
+  }
+
+  fromJSON(value) {
+    return new Change(
+      value.fromA,
+      value.toA,
+      value.fromB,
+      value.toB,
+      value.deleted.map((s) => Span.fromJSON(s)),
+      value.inserted.map((s) => Span.fromJSON(s)),
+    )
+  }
 
   slice(startA, endA, startB, endB) {
-    if (startA == 0 && startB == 0 && endA == this.toA - this.fromA &&
-        endB == this.toB - this.fromB) return this
-    return new Change(this.fromA + startA, this.fromA + endA,
-                      this.fromB + startB, this.fromB + endB,
-                      Span.slice(this.deleted, startA, endA),
-                      Span.slice(this.inserted, startB, endB))
+    if (startA == 0 && startB == 0 && endA == this.toA - this.fromA && endB == this.toB - this.fromB) return this
+    return new Change(
+      this.fromA + startA,
+      this.fromA + endA,
+      this.fromB + startB,
+      this.fromB + endB,
+      Span.slice(this.deleted, startA, endA),
+      Span.slice(this.inserted, startB, endB),
+    )
   }
 
   // : ([Change], [Change], (any, any) → any) → [Change]
@@ -87,34 +125,45 @@ export class Change {
     let result = []
     // Iterate over both sets in parallel, using the middle coordinate
     // system (B in x, A in y) to synchronize.
-    for (let iX = 0, iY = 0, curX = x[0], curY = y[0];;) {
+    for (let iX = 0, iY = 0, curX = x[0], curY = y[0]; ; ) {
       if (!curX && !curY) {
         return result
-      } else if (curX && (!curY || curX.toB < curY.fromA)) { // curX entirely in front of curY
+      } else if (curX && (!curY || curX.toB < curY.fromA)) {
+        // curX entirely in front of curY
         let off = iY ? y[iY - 1].toB - y[iY - 1].toA : 0
-        result.push(off == 0 ? curX :
-                    new Change(curX.fromA, curX.toA, curX.fromB + off, curX.toB + off,
-                               curX.deleted, curX.inserted))
+        result.push(
+          off == 0
+            ? curX
+            : new Change(curX.fromA, curX.toA, curX.fromB + off, curX.toB + off, curX.deleted, curX.inserted),
+        )
         curX = iX++ == x.length ? null : x[iX]
-      } else if (curY && (!curX || curY.toA < curX.fromB)) { // curY entirely in front of curX
+      } else if (curY && (!curX || curY.toA < curX.fromB)) {
+        // curY entirely in front of curX
         let off = iX ? x[iX - 1].toB - x[iX - 1].toA : 0
-        result.push(off == 0 ? curY :
-                    new Change(curY.fromA - off, curY.toA - off, curY.fromB, curY.toB,
-                               curY.deleted, curY.inserted))
+        result.push(
+          off == 0
+            ? curY
+            : new Change(curY.fromA - off, curY.toA - off, curY.fromB, curY.toB, curY.deleted, curY.inserted),
+        )
         curY = iY++ == y.length ? null : y[iY]
-      } else { // Touch, need to merge
+      } else {
+        // Touch, need to merge
         // The rules for merging ranges are that deletions from the
         // old set and insertions from the new are kept. Areas of the
         // middle document covered by a but not by b are insertions
         // from a that need to be added, and areas covered by b but
         // not a are deletions from b that need to be added.
         let pos = Math.min(curX.fromB, curY.fromA)
-        let fromA = Math.min(curX.fromA, curY.fromA - (iX ? x[iX - 1].toB - x[iX - 1].toA : 0)), toA = fromA
-        let fromB = Math.min(curY.fromB, curX.fromB + (iY ? y[iY - 1].toB - y[iY - 1].toA : 0)), toB = fromB
-        let deleted = Span.none, inserted = Span.none
+        let fromA = Math.min(curX.fromA, curY.fromA - (iX ? x[iX - 1].toB - x[iX - 1].toA : 0)),
+          toA = fromA
+        let fromB = Math.min(curY.fromB, curX.fromB + (iY ? y[iY - 1].toB - y[iY - 1].toA : 0)),
+          toB = fromB
+        let deleted = Span.none,
+          inserted = Span.none
 
         // Used to prevent appending ins/del range for the same Change twice
-        let enteredX = false, enteredY = false
+        let enteredX = false,
+          enteredY = false
 
         // Need to have an inner loop since any number of further
         // ranges might be touching this group
@@ -122,7 +171,8 @@ export class Change {
           let nextX = !curX ? 2e8 : pos >= curX.fromB ? curX.toB : curX.fromB
           let nextY = !curY ? 2e8 : pos >= curY.fromA ? curY.toA : curY.fromA
           let next = Math.min(nextX, nextY)
-          let inX = curX && pos >= curX.fromB, inY = curY && pos >= curY.fromA
+          let inX = curX && pos >= curX.fromB,
+            inY = curY && pos >= curY.fromA
           if (!inX && !inY) break
           if (inX && pos == curX.fromB && !enteredX) {
             deleted = Span.join(deleted, curX.deleted, combine)
@@ -153,8 +203,7 @@ export class Change {
           }
           pos = next
         }
-        if (fromA < toA || fromB < toB)
-          result.push(new Change(fromA, toA, fromB, toB, deleted, inserted))
+        if (fromA < toA || fromB < toB) result.push(new Change(fromA, toA, fromB, toB, deleted, inserted))
       }
     }
   }
