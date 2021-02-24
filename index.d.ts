@@ -13,6 +13,16 @@ export class Span {
 
   cut(length: number): Span
 
+  /**
+   * Return a JSON-serializeable representation of this span.
+   */
+  toJSON(): { [key: string]: any }
+
+  /**
+   * Deserialize a span from its JSON representation.
+   */
+  static fromJSON(value: any): Span
+
   static slice(spans: Span[], from: number, to: number): Span[]
 
   static join(a: Span[], b: Span[], combine: (a: any, b: any) => any): Span[]
@@ -34,6 +44,16 @@ export class Change {
   get lenB(): number
 
   slice(startA: number, endA: number, startB: number, endB: number): Change
+
+  /**
+   * Return a JSON-serializeable representation of this change.
+   */
+  toJSON(): { [key: string]: any }
+
+  /**
+   * Deserialize a change from its JSON representation.
+   */
+  static fromJSON(value: any): Change
 
   // :: ([Change], [Change], (any, any) → any) → [Change]
   // This merges two changesets (the end document of x should be the
@@ -76,6 +96,16 @@ export class ChangeSet<S extends Schema = any> {
   // make sure the method is called on the old set and passed the new
   // set. The returned positions will be in new document coordinates.
   changedRange(b: ChangeSet<S>, maps?: StepMap[]): { from: number; to: number } | undefined
+
+  /**
+   * Return a JSON-serializeable representation of this changeset.
+   */
+  toJSON(): { [key: string]: any }
+
+  /**
+   * Deserialize a changeset from its JSON representation.
+   */
+  static fromJSON<S extends Schema = any>(doc: Node<S>, combine?: (a: any, b: any) => any, value: any): Change
 
   // :: (Node, ?(a: any, b: any) → any) → ChangeSet
   // Create a changeset with the given base object and configuration.
