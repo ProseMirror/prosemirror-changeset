@@ -105,7 +105,7 @@ export class ChangeSet<S extends Schema = any> {
   /**
    * Deserialize a changeset from its JSON representation.
    */
-  static fromJSON<S extends Schema = any>(doc: Node<S>, combine?: (a: any, b: any) => any, value: any): ChangeSet
+  static fromJSON<S extends Schema = any>(doc: Node<S>, value: any, combine?: (a: any, b: any) => any): ChangeSet
 
   // :: (Node, ?(a: any, b: any) → any) → ChangeSet
   // Create a changeset with the given base object and configuration.
