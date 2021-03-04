@@ -171,7 +171,7 @@ export class ChangeSet {
     }
   }
 
-  static fromJSON(doc, value, combine) {
+  static fromJSON(doc, value, combine = (a, b) => (a === b ? a : null)) {
     return new ChangeSet(
       { combine, doc },
       value.changes.map((c) => Change.fromJSON(c)),
