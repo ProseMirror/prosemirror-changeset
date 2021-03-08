@@ -4,6 +4,7 @@
 
 import { StepMap } from 'prosemirror-transform'
 import { Node, Schema } from 'prosemirror-model'
+import { Step } from 'prosemirror-transform'
 
 export class Span {
   constructor(lenght: number, data: any)
@@ -78,7 +79,7 @@ export class ChangeSet<S extends Schema = any> {
   // than adding all those changes at once, since different document
   // tokens might be matched during simplification depending on the
   // boundaries of the current changed ranges.
-  addSteps(newDoc: Node<S>, maps: StepMap[], data?: any, steps: Step[]): ChangeSet<S>
+  addSteps(newDoc: Node<S>, maps: StepMap[], data?: any, steps?: Step[]): ChangeSet<S>
 
   // :: Node
   // The starting document of the change set.
