@@ -42,7 +42,7 @@ A replaced range with metadata associated with it.
 
  * **`inserted`**`: [Span]`\
    Data associated with the inserted content. Length
-   adds up to `this.toB - this.toA`.
+   adds up to `this.toB - this.fromB`.
 
 
 ### class Span
