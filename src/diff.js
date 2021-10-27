@@ -2,13 +2,24 @@ const IGNORED_ATTRS = {
   blockId: true,
 }
 
+const IGNORED_MARKS = {
+  comment: true,
+}
+
 const getMarksString = (node) => {
   let marksString = ''
   let keys = Object.keys(node.marks)
   keys.sort()
   for (let i = 0; i < keys.length; i++) {
-    marksString += `${keys[i]}:${node.marks[keys[i]]}`
+    const mark = node.marks[keys[i]]
+
+    if (IGNORED_MARKS[mark.type.name]) {
+      continue
+    }
+
+    marksString += `${keys[i]}:${mark.type.name}`
   }
+
   return marksString
 }
 
