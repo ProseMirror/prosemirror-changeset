@@ -48,7 +48,7 @@ function tokens(frag, start, end, target) {
       if (child.isText) {
         for (let j = from; j < to; j++) target.push(`${child.text.charCodeAt(j - off)}${getMarksString(child)}`)
       } else if (child.isLeaf) {
-        target.push(child.type.name)
+        target.push(`${child.type.name}${getAttributesString(child)}`)
       } else {
         if (from == off) target.push(`${child.type.name}${getAttributesString(child)}`)
         tokens(child.content, Math.max(off + 1, from) - off - 1, Math.min(endOff - 1, to) - off - 1, target)
