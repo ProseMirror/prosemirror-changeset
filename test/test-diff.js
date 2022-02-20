@@ -67,4 +67,19 @@ describe('computeDiff', () => {
   })
 
   it('can handle ambiguous diffs', () => test(doc(p('abcbcd')), doc(p('abcd')), [4, 6, 4, 4]))
+
+  it('can handle prepended heading with overlapping content', () =>
+    test(
+      doc(h1('abcd')),
+      doc(h1('abef'), h1('abcd')),
+      [0,0,0,6]
+    ))
+
+  it('can handle headings with overlapping content', () =>
+    test(
+      doc(h1('abcd'), h2('abcd')),
+      doc(h1('abef'), h1('abcd'), h2('abef'), h2('abcd')),
+      [0,0,0,6],
+      [6, 6, 12, 18]
+    ))
 })
