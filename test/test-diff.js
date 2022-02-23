@@ -19,7 +19,7 @@ describe('computeDiff', () => {
         doc2.content.size,
         [new Span(doc1.content.size, 0)],
         [new Span(doc2.content.size, 0)],
-      ),
+      )
     )
     ist(JSON.stringify(diff.map((r) => [r.fromA, r.toA, r.fromB, r.toB])), JSON.stringify(ranges))
   }
@@ -36,12 +36,12 @@ describe('computeDiff', () => {
   it('ignores single-letter unchanged parts', () => test(doc(p('abcdef')), doc(p('axydzf')), [2, 6, 2, 6]))
 
   it('ignores matching substrings in longer diffs', () =>
-    test(doc(p('One two three')), doc(p('One'), p('And another long paragraph that has wo and ee in it')), [
-      4,
-      14,
-      4,
-      57,
-    ]))
+    test(
+      doc(p('One two three')),
+      doc(p('One'), p('And another long paragraph that has wo and ee in it')),
+      [4,14,4,5],[14,14,5,57]
+    )
+  )
 
   it('finds deletions', () => test(doc(p('abc'), p('def')), doc(p('ac'), p('d')), [2, 3, 2, 2], [7, 9, 6, 6]))
 

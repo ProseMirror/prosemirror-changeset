@@ -2,3 +2,4 @@
 .tern-port
 .reify-cache
 /dist
+.idea
