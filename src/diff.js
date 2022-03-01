@@ -197,7 +197,7 @@ export function computeDiff(fragA, fragB, range) {
       if (x >= n && y >= m) {
         // Trace back through the history to build up a set of changed ranges.
         let diff = [],
-          minSpan = mU || minUnchanged(endA - start, endB - start)
+          minSpan = minUnchanged(endA - start, endB - start)
         // Used to add steps to a diff one at a time, back to front, merging
         // ones that are less than minSpan tokens apart
         let fromA = -1,
@@ -207,8 +207,17 @@ export function computeDiff(fragA, fragB, range) {
 
         let add = (fA, tA, fB, tB) => {
           if (fromA > -1 && fromA < tA + minSpan) {
-            fromA = fA
-            fromB = fB
+            const gapSlice = tokA.slice(tA, fromA)
+            if (gapSlice.includes(-1) && fA !== tA) {
+              diff.push(range.slice(fromA, toA, fromB, toB))
+              fromA = fA
+              toA = tA
+              fromB = fB
+              toB = tB
+            } else {
+              fromA = fA
+              fromB = fB
+            }
           } else {
             if (fromA > -1) {
               diff.push(range.slice(fromA, toA, fromB, toB))
