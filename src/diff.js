@@ -105,6 +105,47 @@ function findFencedNodes(a) {
 // getting in the way of the diff algorithm when comparing characters.
 const FORCED_MATCH_CHAR = '@'
 
+const NODES_NAMES = [
+  'heading',
+  'paragraph',
+  'ordered_list',
+  'unordered_list',
+  'box'
+]
+
+function splitInsertions(change, tok) {
+  const { fromB, toB, fromA, toA } = change
+  let depthCount = 0
+  let curFromA = 0
+  let curToA = toA - fromA
+  let curFromB = 0
+  let curToB = 0
+  let localDiff = []
+
+  tok.slice(fromB, toB).forEach((t) => {
+    curToB += 1
+    if (t !== -1 && NODES_NAMES.some(nodeName => t.includes(nodeName))) {
+      //We found an opening token, increment the depth relative to the start of the change
+      depthCount++
+    }
+    if (t === -1) {
+      depthCount--
+      if (Math.abs(depthCount) === 1) {
+        const slicedChange = change.slice(curFromA, curToA, curFromB, curToB)
+        localDiff.push(slicedChange)
+        curFromB = curToB
+        curFromA = curToA
+        curToA = curFromA
+      }
+    }
+  })
+  if (curFromB !== curToB) {
+    // push in remaining slice
+    localDiff.push(change.slice(curFromA, curToA, curFromB, curToB))
+  }
+  return localDiff.length > 0 ? localDiff : [change]
+}
+
 // : (Fragment, Fragment, Change) → [Change]
 export function computeDiff(fragA, fragB, range) {
   let tokA = tokens(fragA, range.fromA, range.toA, [])
@@ -252,7 +293,24 @@ export function computeDiff(fragA, fragB, range) {
           diff.push(range.slice(fromA, toA, fromB, toB))
         }
 
-        return diff.reverse()
+        diff.reverse()
+
+        // Do a second pass to split replacements in which the inserted content spans multiples nodes into
+        // a single replacement plus one insertion for each root node inserted
+
+        const splitDiff = []
+
+        diff.forEach(change => {
+          // is it a replacement
+          if (change.inserted.length > 0) {
+            const splits = splitInsertions(change, tokB)
+            splitDiff.push(...splits)
+          } else {
+            splitDiff.push(change)
+          }
+        })
+
+        return splitDiff
       }
     }
     // Since only either odd or even diagonals are read from each
