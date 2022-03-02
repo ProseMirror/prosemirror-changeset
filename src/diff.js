@@ -74,10 +74,83 @@ function minUnchanged(sizeA, sizeB) {
   return Math.min(15, Math.max(2, Math.floor(Math.max(sizeA, sizeB) / 10)))
 }
 
+const FENCED_NODE_NAMES = [
+  'heading'
+]
+
+// : ([string | number]) → [[number, number, string]]
+// This function parses an array of tokens looking for ranges that represent a
+// fenced nodes, and return a list of tuples with information about those
+// nodes. Each tuple contains, in order:
+// - the start position of the node
+// - the end position of the node
+// - a hash of the content of the node
+function findFencedNodes(a) {
+  let from = null
+  let to = null
+  let edges = []
+  for (let i = 0, len = a.length; i < len; i++) {
+    if (typeof a[i] === 'string' && FENCED_NODE_NAMES.some(nodeName => a[i].includes(nodeName))) {
+      from = i
+    }
+    if (a[i] === -1) {
+      to = i
+      edges.push([from, to])
+      from = null
+      to = null
+    }
+  }
+  return edges.reduce((acc, [from, to]) => {
+    return [...acc, [from, to, a.slice(from, to + 1).join('-')]]
+  }, [])
+}
+
+// This is the char we replace tokens of matching fenced nodes with. The only
+// requirement is that it's not a charcode, so that we don't run the risk of
+// getting in the way of the diff algorithm when comparing characters.
+const FORCED_MATCH_CHAR = '@'
+
 // : (Fragment, Fragment, Change) → [Change]
 export function computeDiff(fragA, fragB, range) {
   let tokA = tokens(fragA, range.fromA, range.toA, [])
   let tokB = tokens(fragB, range.fromB, range.toB, [])
+
+  // We want to look at fenced nodes first and match them betwen A and B.
+  // This way, we avoid changes spanning across fenced nodes that might have
+  // the same text content.
+  // For example: (diff start: →| , diff end: |←)
+  //
+  //  A                          B
+  //  ---                        ---
+  //  # February 10th, 2022      # February 17th, 2022
+  //                             # February 10th, 2022
+  //
+  //  Would compute:
+  //
+  //  # February 1→|7th, 2022
+  //  # February 1|←0th, 2022
+  //
+  //  Instead, we want it to compute:
+  //
+  //  →|# February 17th, 2022|←
+  //  # February 10th, 2022
+  //
+  let fencedNodesA = findFencedNodes(tokA)
+  let fencedNodesB = findFencedNodes(tokB)
+
+  fencedNodesA.forEach(([xFrom, xTo, xHash]) => {
+    const i = fencedNodesB.findIndex(([,, yHash]) => xHash === yHash)
+    if (i > -1) {
+      const sliced = fencedNodesB.splice(0, i + 1)
+      const [yFrom, yTo, _] = sliced[sliced.length - 1]
+      for (let xxFrom = xFrom, xxTo = xTo; xxFrom < tokA.length && xxFrom <= xxTo; xxFrom++) {
+        tokA[xxFrom] = FORCED_MATCH_CHAR
+      }
+      for (let yyFrom = yFrom, yyTo = yTo; yyFrom <= yyTo; yyFrom++) {
+        tokB[yyFrom] = FORCED_MATCH_CHAR
+      }
+    }
+  })
 
   // Scan from both sides to cheaply eliminate work
   let start = 0,
