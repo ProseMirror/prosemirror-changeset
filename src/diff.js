@@ -60,11 +60,6 @@ function tokens(frag, start, end, target) {
   return target
 }
 
-// The code below will refuse to compute a diff with more than 5000
-// insertions or deletions, which takes about 300ms to reach on my
-// machine. This is a safeguard against runaway computations.
-const MAX_DIFF_SIZE = 5000
-
 // This obscure mess of constants computes the minimum length of an
 // unchanged range (not at the start/end of the compared content). The
 // idea is to make it higher in bigger replacements, so that you don't
@@ -109,6 +104,47 @@ function findFencedNodes(a) {
 // requirement is that it's not a charcode, so that we don't run the risk of
 // getting in the way of the diff algorithm when comparing characters.
 const FORCED_MATCH_CHAR = '@'
+
+const BOUNDARY_NODES = [
+  'heading',
+  'paragraph',
+  'ordered_list',
+  'unordered_list',
+  'box'
+]
+
+function splitInsertions(change, tok) {
+  const { fromB, toB, fromA, toA } = change
+  let depthCount = 0
+  let curFromA = 0
+  let curToA = toA - fromA
+  let curFromB = 0
+  let curToB = 0
+  let localDiff = []
+
+  tok.slice(fromB, toB).forEach((t) => {
+    curToB += 1
+    if (t !== -1 && BOUNDARY_NODES.some(nodeName => t.includes(nodeName))) {
+      //We found an opening token, increment the depth relative to the start of the change
+      depthCount++
+    }
+    if (t === -1) {
+      depthCount--
+      if (Math.abs(depthCount) === 1) {
+        const slicedChange = change.slice(curFromA, curToA, curFromB, curToB)
+        localDiff.push(slicedChange)
+        curFromB = curToB
+        curFromA = curToA
+        curToA = curFromA
+      }
+    }
+  })
+  if (curFromB !== curToB) {
+    // push in remaining slice
+    localDiff.push(change.slice(curFromA, curToA, curFromB, curToB))
+  }
+  return localDiff.length > 0 ? localDiff : [change]
+}
 
 // : (Fragment, Fragment, Change) → [Change]
 export function computeDiff(fragA, fragB, range) {
@@ -157,35 +193,49 @@ export function computeDiff(fragA, fragB, range) {
     endA = tokA.length,
     endB = tokB.length
   while (start < tokA.length && start < tokB.length && tokA[start] === tokB[start]) start++
-  if (start == tokA.length && start == tokB.length) return []
+  if (start === tokA.length && start === tokB.length) return []
   while (endA > start && endB > start && tokA[endA - 1] === tokB[endB - 1]) endA--, endB--
   // If the result is simple _or_ too big to cheaply compute, return
   // the remaining region as the diff
-  if (endA == start || endB == start || (endA == endB && endA == start + 1))
+  if (endA === start || endB === start || (endA === endB && endA === start + 1))
     return [range.slice(start, endA, start, endB)]
 
   // This is an implementation of Myers' diff algorithm
   // See https://neil.fraser.name/writing/diff/myers.pdf and
   // https://blog.jcoglan.com/2017/02/12/the-myers-diff-algorithm-part-1/
 
-  let lenA = endA - start,
-    lenB = endB - start
-  let max = Math.min(MAX_DIFF_SIZE, lenA + lenB),
-    off = max + 1
-  let history = []
-  let frontier = []
-  for (let len = off * 2, i = 0; i < len; i++) frontier[i] = -1
+  let n = endA - start
+  let m = endB - start
+  let max = n + m
+  let off = max + 1
+  let trace = []
+  let v = new Array(off * 2).fill(-1)
 
-  for (let size = 0; size <= max; size++) {
-    for (let diag = -size; diag <= size; diag += 2) {
-      let next = frontier[diag + 1 + max],
-        prev = frontier[diag - 1 + max]
-      let x = next < prev ? prev : next + 1,
-        y = x + diag
-      while (x < lenA && y < lenB && tokA[start + x] === tokB[start + y]) x++, y++
-      frontier[diag + max] = x
+  for (let d = 0; d <= max; d++) {
+    for (let k = -d; k <= d; k += 2) {
+      /*
+         The order of the elements in the array does not matter, the index, value
+         pairs are what we care about. In order to be able to store the negative values
+         for k in the indices, offset by max
+       */
+      let next = v[k + 1 + max]
+      let prev = v[k - 1 + max]
+      let x = next < prev ? prev : next + 1
+      let y = x + k
+
+      /*
+         walk all diagonals since they are free.
+         Diagonals occur when the tokens match, walking a diagonal increases x and y
+       */
+      while (x < n && y < m && tokA[start + x] === tokB[start + y]) {
+        x++
+        y++
+      }
+
+      v[k + max] = x
+
       // Found a match
-      if (x >= lenA && y >= lenB) {
+      if (x >= n && y >= m) {
         // Trace back through the history to build up a set of changed ranges.
         let diff = [],
           minSpan = minUnchanged(endA - start, endB - start)
@@ -195,12 +245,24 @@ export function computeDiff(fragA, fragB, range) {
           toA = -1,
           fromB = -1,
           toB = -1
+
         let add = (fA, tA, fB, tB) => {
           if (fromA > -1 && fromA < tA + minSpan) {
-            fromA = fA
-            fromB = fB
+            const gapSlice = tokA.slice(tA, fromA)
+            if (gapSlice.includes(-1) && fA !== tA) {
+              diff.push(range.slice(fromA, toA, fromB, toB))
+              fromA = fA
+              toA = tA
+              fromB = fB
+              toB = tB
+            } else {
+              fromA = fA
+              fromB = fB
+            }
           } else {
-            if (fromA > -1) diff.push(range.slice(fromA, toA, fromB, toB))
+            if (fromA > -1) {
+              diff.push(range.slice(fromA, toA, fromB, toB))
+            }
             fromA = fA
             toA = tA
             fromB = fB
@@ -208,31 +270,52 @@ export function computeDiff(fragA, fragB, range) {
           }
         }
 
-        for (let i = size - 1; i >= 0; i--) {
-          let next = frontier[diag + 1 + max],
-            prev = frontier[diag - 1 + max]
+        for (let i = d - 1; i >= 0; i--) {
+          let next = v[k + 1 + max],
+            prev = v[k - 1 + max]
           if (next < prev) {
-            // Deletion
-            diag--
+            // Deletion, resulting in an insertion
+            k--
             x = prev + start
-            y = x + diag
+            y = x + k
             add(x, x, y, y + 1)
           } else {
-            // Insertion
-            diag++
+            // Insertion, resulting in a deletion
+            k++
             x = next + start
-            y = x + diag
+            y = x + k
             add(x, x + 1, y, y)
           }
-          frontier = history[i >> 1]
+          v = trace[i >> 1]
         }
-        if (fromA > -1) diff.push(range.slice(fromA, toA, fromB, toB))
-        return diff.reverse()
+
+        if (fromA > -1) {
+          diff.push(range.slice(fromA, toA, fromB, toB))
+        }
+
+        diff.reverse()
+
+        // Do a second pass to split replacements in which the inserted content spans multiples nodes into
+        // a single replacement plus one insertion for each root node inserted
+
+        const splitDiff = []
+
+        diff.forEach(change => {
+          // is it a replacement
+          if (change.inserted.length > 0) {
+            const splits = splitInsertions(change, tokB)
+            splitDiff.push(...splits)
+          } else {
+            splitDiff.push(change)
+          }
+        })
+
+        return splitDiff
       }
     }
     // Since only either odd or even diagonals are read from each
     // frontier, we only copy them every other iteration.
-    if (size % 2 == 0) history.push(frontier.slice())
+    if (d % 2 === 0) trace.push(v.slice())
   }
   // The loop exited, meaning the maximum amount of work was done.
   // Just return a change spanning the entire range.

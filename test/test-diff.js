@@ -1,5 +1,5 @@
 const ist = require('ist')
-const { doc, p, em, strong, h1, h2 } = require('prosemirror-test-builder')
+const { doc, p, em, strong, h1, h2, ordered_list, list_item } = require('prosemirror-test-builder')
 
 const {
   Span,
@@ -19,7 +19,7 @@ describe('computeDiff', () => {
         doc2.content.size,
         [new Span(doc1.content.size, 0)],
         [new Span(doc2.content.size, 0)],
-      ),
+      )
     )
     ist(JSON.stringify(diff.map((r) => [r.fromA, r.toA, r.fromB, r.toB])), JSON.stringify(ranges))
   }
@@ -36,12 +36,12 @@ describe('computeDiff', () => {
   it('ignores single-letter unchanged parts', () => test(doc(p('abcdef')), doc(p('axydzf')), [2, 6, 2, 6]))
 
   it('ignores matching substrings in longer diffs', () =>
-    test(doc(p('One two three')), doc(p('One'), p('And another long paragraph that has wo and ee in it')), [
-      4,
-      14,
-      4,
-      57,
-    ]))
+    test(
+      doc(p('One two three')),
+      doc(p('One'), p('And another long paragraph that has wo and ee in it')),
+      [4,14,4,5],[14,14,5,57]
+    )
+  )
 
   it('finds deletions', () => test(doc(p('abc'), p('def')), doc(p('ac'), p('d')), [2, 3, 2, 2], [7, 9, 6, 6]))
 
@@ -81,5 +81,37 @@ describe('computeDiff', () => {
       doc(h1('abef'), h1('abcd'), h2('abef'), h2('abcd')),
       [0,0,0,6],
       [6, 6, 12, 18]
+    ))
+
+  it('isn\'t too greedy merging changes across blocks' , () =>
+    test(
+      doc(
+        p('Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.'),
+        p('abcde'),
+        p('efhi'),
+      ),
+      doc(
+        p('TLorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.'),
+        p('sadcd'),
+        p('efhij')
+      ),
+      [1,1,1,2],[577,582,578,583],[588,588,589,590]
+    )
+  )
+
+  it('splits insertions' , () =>
+    test(
+      doc(
+        p('Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.'),
+        p('this is a single paragraph')
+      ),
+      doc(
+        p('TLorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.'),
+        p('this is a single paragraph with some text'),
+        p('and another paragraph'),
+        p('and another paragraph'),
+        p('and one more'),
+      ),
+      [1,1,1,2],[603,603,604,620],[603,603,620,643],[603,603,643,666],[603,603,666,679]
     ))
 })
