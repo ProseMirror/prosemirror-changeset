@@ -105,7 +105,7 @@ function findFencedNodes(a) {
 // getting in the way of the diff algorithm when comparing characters.
 const FORCED_MATCH_CHAR = '@'
 
-const NODES_NAMES = [
+const BOUNDARY_NODES = [
   'heading',
   'paragraph',
   'ordered_list',
@@ -124,7 +124,7 @@ function splitInsertions(change, tok) {
 
   tok.slice(fromB, toB).forEach((t) => {
     curToB += 1
-    if (t !== -1 && NODES_NAMES.some(nodeName => t.includes(nodeName))) {
+    if (t !== -1 && BOUNDARY_NODES.some(nodeName => t.includes(nodeName))) {
       //We found an opening token, increment the depth relative to the start of the change
       depthCount++
     }
