@@ -162,10 +162,6 @@ export function computeDiff(fragA, fragB, range) {
   while (start < tokA.length && start < tokB.length && tokA[start] === tokB[start]) start++
   if (start === tokA.length && start === tokB.length) return []
   while (endA > start && endB > start && tokA[endA - 1] === tokB[endB - 1]) endA--, endB--
-  // If the result is simple _or_ too big to cheaply compute, return
-  // the remaining region as the diff
-  if (endA === start || endB === start || (endA === endB && endA === start + 1))
-    return [range.slice(start, endA, start, endB)]
 
   // This is an implementation of Myers' diff algorithm
   // See https://neil.fraser.name/writing/diff/myers.pdf and
