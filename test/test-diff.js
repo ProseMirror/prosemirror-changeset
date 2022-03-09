@@ -39,7 +39,7 @@ describe('computeDiff', () => {
     test(
       doc(p('One two three')),
       doc(p('One'), p('And another long paragraph that has wo and ee in it')),
-      [4,14,4,57]
+      [4,14,4,5],[14,14,5,57]
     )
   )
 
@@ -98,4 +98,36 @@ describe('computeDiff', () => {
       [1,1,1,2],[577,582,578,583],[588,588,589,590]
     )
   )
+
+  it('splits insertions' , () =>
+    test(
+      doc(
+        p('Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.'),
+        p('this is a single paragraph')
+      ),
+      doc(
+        p('TLorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.'),
+        p('this is a single paragraph with some text'),
+        p('and another paragraph'),
+        p('and another paragraph'),
+        p('and one more'),
+      ),
+      [1,1,1,2],[603,603,604,620],[603,603,620,643],[603,603,643,666],[603,603,666,679]
+    ))
+
+  it('splits root level insertions' , () =>
+    test(
+      doc(
+        p('hello'),
+        p('world')
+      ),
+      doc(
+        p('hello'),
+        p('world'),
+        p('and another paragraph'),
+        p('and another paragraph'),
+        p('and one more'),
+      ),
+      [14,14,14,37],[14,14,37,60],[14,14,60,74]
+    ))
 })
