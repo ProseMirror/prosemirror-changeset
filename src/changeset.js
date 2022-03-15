@@ -8,11 +8,10 @@ export { simplifyChanges } from './simplify'
 // flat sequence of replacements, and simplifies replacments that
 // partially undo themselves by comparing their content.
 export class ChangeSet {
-  constructor(config, changes, splitEnabled = true) {
+  constructor(config, changes) {
     this.config = config
     // :: [Change] Replaced regions.
     this.changes = changes
-    this.splitEnabled = splitEnabled
   }
 
   // :: (Node, [StepMap], union<[any], any>) → ChangeSet
@@ -90,7 +89,7 @@ export class ChangeSet {
         !newChanges.some((r) => r.toB > change.fromB && r.fromB < change.toB)
       )
         continue
-      let diff = computeDiff(this.config.doc.content, newDoc.content, change, this.splitEnabled)
+      let diff = computeDiff(this.config.doc.content, newDoc.content, change, this.config.splitEnabled)
 
       // Fast path: If they are completely different, don't do anything
       if (diff.length == 1 && diff[0].fromB == 0 && diff[0].toB == change.toB - change.fromB) continue
@@ -184,8 +183,8 @@ export class ChangeSet {
   // The `combine` function is used to compare and combine metadata—it
   // should return null when metadata isn't compatible, and a combined
   // version for a merged range when it is.
-  static create(doc, combine = (a, b) => (a === b ? a : null)) {
-    return new ChangeSet({ combine, doc }, [], [])
+  static create(doc, splitEnabled = true, combine = (a, b) => (a === b ? a : null)) {
+    return new ChangeSet({ combine, doc, splitEnabled }, [])
   }
 }
 
