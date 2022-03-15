@@ -8,10 +8,11 @@ export { simplifyChanges } from './simplify'
 // flat sequence of replacements, and simplifies replacments that
 // partially undo themselves by comparing their content.
 export class ChangeSet {
-  constructor(config, changes) {
+  constructor(config, changes, splitEnabled = true) {
     this.config = config
     // :: [Change] Replaced regions.
     this.changes = changes
+    this.splitEnabled = splitEnabled
   }
 
   // :: (Node, [StepMap], union<[any], any>) → ChangeSet
@@ -89,7 +90,7 @@ export class ChangeSet {
         !newChanges.some((r) => r.toB > change.fromB && r.fromB < change.toB)
       )
         continue
-      let diff = computeDiff(this.config.doc.content, newDoc.content, change)
+      let diff = computeDiff(this.config.doc.content, newDoc.content, change, this.splitEnabled)
 
       // Fast path: If they are completely different, don't do anything
       if (diff.length == 1 && diff[0].fromB == 0 && diff[0].toB == change.toB - change.fromB) continue
