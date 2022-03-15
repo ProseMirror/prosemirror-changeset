@@ -370,6 +370,27 @@ describe('ChangeSet', () => {
       ],
     ),
   )
+
+  describe('when splitEnabled is false', () => {
+    it(
+      'fuzz issue 2',
+      find(
+        doc(p('eAMISWgauf')),
+        [
+          (tr) => tr.delete(5, 10),
+          (tr) => tr.replaceWith(5, 5, t('KkM')),
+          (tr) => tr.replaceWith(3, 3, t('UDO')),
+          (tr) => tr.delete(1, 12),
+          (tr) => tr.replaceWith(1, 1, t('eAUDOMIKkMf')),
+          (tr) => tr.delete(5, 8),
+          (tr) => tr.replaceWith(3, 3, t('qX')),
+        ],
+        [[3,10,3,10,[[2,0],[5,2]],[[7,0]]]],
+        [2, 0, 0, 0, 0, 0, 0],
+        false
+      ),
+    )
+  })
 })
 
 describe('JSON', () => {
@@ -398,9 +419,9 @@ describe('JSON', () => {
   })
 })
 
-function find(doc, build, changes, sep) {
+function find(doc, build, changes, sep, splitEnabled = true) {
   return () => {
-    let set = ChangeSet.create(doc),
+    let set = ChangeSet.create(doc, splitEnabled),
       curDoc = doc
     if (!Array.isArray(build)) build = [build]
     build.forEach((build, i) => {

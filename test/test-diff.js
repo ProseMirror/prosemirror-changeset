@@ -1,5 +1,5 @@
 const ist = require('ist')
-const { doc, p, em, strong, h1, h2, ordered_list, list_item } = require('prosemirror-test-builder')
+const { doc, p, em, strong, h1, h2 } = require('prosemirror-test-builder')
 
 const {
   Span,
@@ -8,7 +8,7 @@ const {
 } = require('..')
 
 describe('computeDiff', () => {
-  function test(doc1, doc2, ...ranges) {
+  const test = (doc1, doc2, ...ranges) => {
     let diff = computeDiff(
       doc1.content,
       doc2.content,
@@ -19,7 +19,8 @@ describe('computeDiff', () => {
         doc2.content.size,
         [new Span(doc1.content.size, 0)],
         [new Span(doc2.content.size, 0)],
-      )
+      ),
+      true
     )
     ist(JSON.stringify(diff.map((r) => [r.fromA, r.toA, r.fromB, r.toB])), JSON.stringify(ranges))
   }
@@ -130,4 +131,55 @@ describe('computeDiff', () => {
       ),
       [14,14,14,37],[14,14,37,60],[14,14,60,74]
     ))
+
+  describe('when splitEnabled is false', () => {
+    const test = (doc1, doc2, ...ranges) => {
+      let diff = computeDiff(
+        doc1.content,
+        doc2.content,
+        new Change(
+          0,
+          doc1.content.size,
+          0,
+          doc2.content.size,
+          [new Span(doc1.content.size, 0)],
+          [new Span(doc2.content.size, 0)],
+        ),
+        false
+      )
+      ist(JSON.stringify(diff.map((r) => [r.fromA, r.toA, r.fromB, r.toB])), JSON.stringify(ranges))
+    }
+
+    it('splits insertions' , () =>
+      test(
+        doc(
+          p('Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.'),
+          p('this is a single paragraph')
+        ),
+        doc(
+          p('TLorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.'),
+          p('this is a single paragraph with some text'),
+          p('and another paragraph'),
+          p('and another paragraph'),
+          p('and one more'),
+        ),
+        [1,1,1,2],[603,603,604,679]
+      ))
+
+    it('splits root level insertions' , () =>
+      test(
+        doc(
+          p('hello'),
+          p('world')
+        ),
+        doc(
+          p('hello'),
+          p('world'),
+          p('and another paragraph'),
+          p('and another paragraph'),
+          p('and one more'),
+        ),
+        [14,14,14,74]
+      ))
+  })
 })

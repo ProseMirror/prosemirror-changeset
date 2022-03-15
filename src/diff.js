@@ -147,7 +147,7 @@ function splitInsertions(change, tok) {
 }
 
 // : (Fragment, Fragment, Change) → [Change]
-export function computeDiff(fragA, fragB, range) {
+export function computeDiff(fragA, fragB, range, splitEnabled) {
   let tokA = tokens(fragA, range.fromA, range.toA, [])
   let tokB = tokens(fragB, range.fromB, range.toB, [])
 
@@ -290,6 +290,10 @@ export function computeDiff(fragA, fragB, range) {
         }
 
         diff.reverse()
+
+        if (!splitEnabled) {
+          return diff
+        }
 
         // Do a second pass to split replacements in which the inserted content spans multiples nodes into
         // a single replacement plus one insertion for each root node inserted
