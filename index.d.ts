@@ -113,7 +113,7 @@ export class ChangeSet<S extends Schema = any> {
   // The `combine` function is used to compare and combine metadata—it
   // should return null when metadata isn't compatible, and a combined
   // version for a merged range when it is.
-  static create<S extends Schema = any>(doc: Node<S>, combine?: (a: any, b: any) => any): ChangeSet<S>
+  static create<S extends Schema = any>(doc: Node<S>, splitEnabled?: boolean, combine?: (a: any, b: any) => any): ChangeSet<S>
 }
 
 // :: ([Change], Node) → [Change]
