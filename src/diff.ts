@@ -1,13 +1,16 @@
+import {Fragment} from "prosemirror-model"
+import {Change} from "./change"
+
 // Convert the given range of a fragment to tokens, where node open
 // tokens are encoded as strings holding the node name, characters as
 // their character code, and node close tokens as -1.
-function tokens(frag, start, end, target) {
+function tokens(frag: Fragment, start: number, end: number, target: (number | string)[]) {
   for (let i = 0, off = 0; i < frag.childCount; i++) {
     let child = frag.child(i), endOff = off + child.nodeSize
     let from = Math.max(off, start), to = Math.min(endOff, end)
     if (from < to) {
       if (child.isText) {
-        for (let j = from; j < to; j++) target.push(child.text.charCodeAt(j - off))
+        for (let j = from; j < to; j++) target.push(child.text!.charCodeAt(j - off))
       } else if (child.isLeaf) {
         target.push(child.type.name)
       } else {
@@ -31,12 +34,11 @@ const MAX_DIFF_SIZE = 5000
 // idea is to make it higher in bigger replacements, so that you don't
 // get a diff soup of coincidentally identical letters when replacing
 // a paragraph.
-function minUnchanged(sizeA, sizeB) {
+function minUnchanged(sizeA: number, sizeB: number) {
   return Math.min(15, Math.max(2, Math.floor(Math.max(sizeA, sizeB) / 10)))
 }
 
-// : (Fragment, Fragment, Change) → [Change]
-export function computeDiff(fragA, fragB, range) {
+export function computeDiff(fragA: Fragment, fragB: Fragment, range: Change) {
   let tokA = tokens(fragA, range.fromA, range.toA, [])
   let tokB = tokens(fragB, range.fromB, range.toB, [])
 
@@ -56,8 +58,8 @@ export function computeDiff(fragA, fragB, range) {
 
   let lenA = endA - start, lenB = endB - start
   let max = Math.min(MAX_DIFF_SIZE, lenA + lenB), off = max + 1
-  let history = []
-  let frontier = []
+  let history: number[][] = []
+  let frontier: number[] = []
   for (let len = off * 2, i = 0; i < len; i++) frontier[i] = -1
 
   for (let size = 0; size <= max; size++) {
@@ -73,7 +75,7 @@ export function computeDiff(fragA, fragB, range) {
         // Used to add steps to a diff one at a time, back to front, merging
         // ones that are less than minSpan tokens apart
         let fromA = -1, toA = -1, fromB = -1, toB = -1
-        let add = (fA, tA, fB, tB) => {
+        let add = (fA: number, tA: number, fB: number, tB: number) => {
           if (fromA > -1 && fromA < tA + minSpan) {
             fromA = fA; fromB = fB
           } else {

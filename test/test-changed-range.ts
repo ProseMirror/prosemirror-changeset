@@ -1,10 +1,11 @@
-const ist = require("ist")
-const {schema, doc, p} = require("prosemirror-test-builder")
-const {Transform} = require("prosemirror-transform")
+import ist from "ist"
+import {schema, doc, p} from "prosemirror-test-builder"
+import {Transform} from "prosemirror-transform"
+import {Node} from "prosemirror-model"
 
-const {ChangeSet} = require("..")
+import {ChangeSet} from "prosemirror-changeset"
 
-function mk(doc, change) {
+function mk(doc: Node, change: (tr: Transform) => Transform): {doc0: Node, tr: Transform, data: any[], set0: ChangeSet, set: ChangeSet} {
   let tr = change(new Transform(doc))
   let data = new Array(tr.steps.length).fill("a")
   let set0 = ChangeSet.create(doc)
@@ -12,7 +13,7 @@ function mk(doc, change) {
           set: set0.addSteps(tr.doc, tr.mapping.maps, data)}
 }
 
-function same(a, b) {
+function same(a: any, b: any) {
   ist(JSON.stringify(a), JSON.stringify(b))
 }
 
@@ -42,6 +43,6 @@ describe("ChangeSet.changedRange", () => {
 
   it("detects changes in deletions", () => {
     let {set} = mk(doc(p("abc")), tr => tr.delete(2, 3))
-    same(set.changedRange(set.map(() => "b", () => "b")), {from: 2, to: 2})
+    same(set.changedRange(set.map(() => "b")), {from: 2, to: 2})
   })
 })

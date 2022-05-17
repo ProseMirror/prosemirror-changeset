@@ -1,6 +1,7 @@
-const ist = require("ist")
-const {doc, p, img} = require("prosemirror-test-builder")
-const {simplifyChanges, Change, Span} = require("..")
+import ist from "ist"
+import {doc, p, img} from "prosemirror-test-builder"
+import {Node} from "prosemirror-model"
+import {simplifyChanges, Change, Span} from "prosemirror-changeset"
 
 describe("simplifyChanges", () => {
   it("doesn't change insertion-only changes", () => test(
@@ -25,7 +26,7 @@ describe("simplifyChanges", () => {
     [[7, 10]], doc(p("one two ----- four")), [[5, 10]]))
 
   it("treats leaf nodes as non-words", () => test(
-    [[2, 3], [6, 7]], doc(p("one", img, "two")), [[2, 3], [6, 7]]))
+    [[2, 3], [6, 7]], doc(p("one", img(), "two")), [[2, 3], [6, 7]]))
 
   it("treats node boundaries as non-words", () => test(
     [[2, 3], [7, 8]], doc(p("one"), p("two")), [[2, 3], [7, 8]]))
@@ -55,13 +56,13 @@ describe("simplifyChanges", () => {
   })
 })
 
-function range(array, author = 0) {
+function range(array: number[], author = 0) {
   let [fromA, toA] = array
   let [fromB, toB] = array.length > 2 ? array.slice(2) : array
   return new Change(fromA, toA, fromB, toB, [new Span(toA - fromA, author)], [new Span(toB - fromB, author)])
 }
 
-function test(changes, doc, result) {
+function test(changes: number[][], doc: Node, result: number[][]) {
   let ranges = changes.map(range)
   ist(JSON.stringify(simplifyChanges(ranges, doc).map((r, i) => {
     if (result[i] && result[i].length > 2) return [r.fromA, r.toA, r.fromB, r.toB]

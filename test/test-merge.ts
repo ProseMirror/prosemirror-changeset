@@ -1,5 +1,5 @@
-const ist = require("ist")
-const {Change, Span} = require("..")
+import ist from "ist"
+import {Change, Span} from "prosemirror-changeset"
 
 describe("mergeChanges", () => {
   it("can merge simple insertions", () => test(
@@ -43,13 +43,13 @@ describe("mergeChanges", () => {
   ))
 })
 
-function range(array, author = 0) {
+function range(array: number[], author = 0) {
   let [fromA, toA] = array
   let [fromB, toB] = array.length > 2 ? array.slice(2) : array
   return new Change(fromA, toA, fromB, toB, [new Span(toA - fromA, author)], [new Span(toB - fromB, author)])
 }
 
-function test(changeA, changeB, expected) {
+function test(changeA: number[][], changeB: number[][], expected: number[][]) {
   const result = Change.merge(changeA.map(range), changeB.map(range), a => a)
     .map(r => [r.fromA, r.toA, r.fromB, r.toB])
   ist(JSON.stringify(result), JSON.stringify(expected))

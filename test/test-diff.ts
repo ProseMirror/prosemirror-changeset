@@ -1,10 +1,11 @@
-const ist = require("ist")
-const {doc, p, em, strong, h1, h2} = require("prosemirror-test-builder")
-
-const {Span, Change, ChangeSet: {computeDiff}} = require("..")
+import ist from "ist"
+import {doc, p, em, strong, h1, h2} from "prosemirror-test-builder"
+import {Node} from "prosemirror-model"
+import {Span, Change, ChangeSet} from "prosemirror-changeset"
+const {computeDiff} = ChangeSet
 
 describe("computeDiff", () => {
-  function test(doc1, doc2, ...ranges) {
+  function test(doc1: Node, doc2: Node, ...ranges: number[][]) {
     let diff = computeDiff(doc1.content, doc2.content,
                            new Change(0, doc1.content.size, 0, doc2.content.size,
                                       [new Span(doc1.content.size, 0)],

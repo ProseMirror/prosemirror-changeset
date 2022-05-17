@@ -1,8 +1,9 @@
-const ist = require("ist")
-const {schema, doc, p, blockquote, h1} = require("prosemirror-test-builder")
-const {Transform} = require("prosemirror-transform")
+import ist from "ist"
+import {schema, doc, p, blockquote, h1} from "prosemirror-test-builder"
+import {Transform} from "prosemirror-transform"
+import {Node} from "prosemirror-model"
 
-const {ChangeSet} = require("..")
+import {ChangeSet} from "prosemirror-changeset"
 
 describe("ChangeSet", () => {
   it("finds a single insertion",
@@ -181,11 +182,12 @@ describe("ChangeSet", () => {
 
   it("correctly handles steps with multiple map entries", find(doc(p()), [
     tr => tr.replaceWith(1, 1, t("ab")),
-    tr => tr.wrap(tr.doc.resolve(1).blockRange(), [{type: schema.nodes.blockquote}])
+    tr => tr.wrap(tr.doc.resolve(1).blockRange()!, [{type: schema.nodes.blockquote}])
   ], [[0, 0, 0, 1], [1, 1, 2, 4], [2, 2, 5, 6]]))
 })
 
-function find(doc, build, changes, sep) {
+function find(doc: Node, build: ((tr: Transform) => void) | ((tr: Transform) => void)[],
+              changes: any[], sep?: number[] | boolean) {
   return () => {
     let set = ChangeSet.create(doc), curDoc = doc
     if (!Array.isArray(build)) build = [build]
@@ -198,7 +200,7 @@ function find(doc, build, changes, sep) {
 
     let owner = sep && changes.length && changes[0].length > 4
     ist(JSON.stringify(set.changes.map(ch => {
-      let range = [ch.fromA, ch.toA, ch.fromB, ch.toB]
+      let range: any[] = [ch.fromA, ch.toA, ch.fromB, ch.toB]
       if (owner) range.push(ch.deleted.map(d => [d.length, d.data]),
                             ch.inserted.map(d => [d.length, d.data]))
       return range
@@ -206,4 +208,4 @@ function find(doc, build, changes, sep) {
   }
 }
 
-function t(str) { return schema.text(str) }
+function t(str: string) { return schema.text(str) }

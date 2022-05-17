@@ -1,6 +1,7 @@
+import {Fragment, Node} from "prosemirror-model"
 import {Span, Change} from "./change"
 
-let letter
+let letter: RegExp | undefined
 // If the runtime support unicode properties in regexps, that's a good
 // source of info on whether something is a letter.
 try { letter = new RegExp("[\\p{Alphabetic}_]", "u") } catch(_) {}
@@ -9,7 +10,7 @@ try { letter = new RegExp("[\\p{Alphabetic}_]", "u") } catch(_) {}
 // or if it is part of these common single-case scripts.
 const nonASCIISingleCaseWordChar = /[\u00df\u0587\u0590-\u05f4\u0600-\u06ff\u3040-\u309f\u30a0-\u30ff\u3400-\u4db5\u4e00-\u9fcc\uac00-\ud7af]/
 
-function isLetter(code) {
+function isLetter(code: number) {
   if (code < 128)
     return code >= 48 && code <= 57 || code >= 65 && code <= 90 || code >= 79 && code <= 122
   let ch = String.fromCharCode(code)
@@ -20,15 +21,15 @@ function isLetter(code) {
 // Convert a range of document into a string, so that we can easily
 // access characters at a given position. Treat non-text tokens as
 // spaces so that they aren't considered part of a word.
-function getText(frag, start, end) {
+function getText(frag: Fragment, start: number, end: number) {
   let out = ""
-  function convert(frag, start, end) {
+  function convert(frag: Fragment, start: number, end: number) {
     for (let i = 0, off = 0; i < frag.childCount; i++) {
       let child = frag.child(i), endOff = off + child.nodeSize
       let from = Math.max(off, start), to = Math.min(endOff, end)
       if (from < to) {
         if (child.isText) {
-          out += child.text.slice(Math.max(0, start - off), Math.min(child.text.length, end - off))
+          out += child.text!.slice(Math.max(0, start - off), Math.min(child.text!.length, end - off))
         } else if (child.isLeaf) {
           out += " "
         } else {
@@ -48,15 +49,14 @@ function getText(frag, start, end) {
 // candidates for merging.
 const MAX_SIMPLIFY_DISTANCE = 30
 
-// :: ([Change], Node) → [Change]
-// Simplifies a set of changes for presentation. This makes the
-// assumption that having both insertions and deletions within a word
-// is confusing, and, when such changes occur without a word boundary
-// between them, they should be expanded to cover the entire set of
-// words (in the new document) they touch. An exception is made for
-// single-character replacements.
-export function simplifyChanges(changes, doc) {
-  let result = []
+/// Simplifies a set of changes for presentation. This makes the
+/// assumption that having both insertions and deletions within a word
+/// is confusing, and, when such changes occur without a word boundary
+/// between them, they should be expanded to cover the entire set of
+/// words (in the new document) they touch. An exception is made for
+/// single-character replacements.
+export function simplifyChanges(changes: readonly Change[], doc: Node) {
+  let result: Change[] = []
   for (let i = 0; i < changes.length; i++) {
     let end = changes[i].toB, start = i
     while (i < changes.length - 1 && changes[i + 1].fromB <= end + MAX_SIMPLIFY_DISTANCE)
@@ -66,7 +66,7 @@ export function simplifyChanges(changes, doc) {
   return result
 }
 
-function simplifyAdjacentChanges(changes, from, to, doc, target) {
+function simplifyAdjacentChanges(changes: readonly Change[], from: number, to: number, doc: Node, target: Change[]) {
   let start = Math.max(0, changes[from].fromB - MAX_SIMPLIFY_DISTANCE)
   let end = Math.min(doc.content.size, changes[to - 1].toB + MAX_SIMPLIFY_DISTANCE)
   let text = getText(doc.content, start, end)
@@ -107,9 +107,9 @@ function simplifyAdjacentChanges(changes, from, to, doc, target) {
   return changes
 }
 
-function combine(a, b) { return a === b ? a : null }
+function combine<T>(a: T, b: T): T { return a === b ? a : null as any }
 
-function fillChange(changes, fromB, toB) {
+function fillChange(changes: readonly Change[], fromB: number, toB: number) {
   let fromA = changes[0].fromA - (changes[0].fromB - fromB)
   let last = changes[changes.length - 1]
   let toA = last.toA + (toB - last.toB)
