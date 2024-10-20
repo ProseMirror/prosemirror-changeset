@@ -41,7 +41,7 @@ A replaced range with metadata associated with it.
 
  * **`inserted`**`: readonly Span[]`\
    Data associated with the inserted content. Length adds up to
-   `this.toB - this.toA`.
+   `this.toB - this.fromB`.
 
  * `static `**`merge`**`<Data>(x: readonly Change[], y: readonly Change[], combine: fn(dataA: Data, dataB: Data) → Data) → readonly Change[]`\
    This merges two changesets (the end document of x should be the
