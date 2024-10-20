@@ -66,7 +66,7 @@ export class Change<Data = any> {
     /// spans adds up to `this.toA - this.fromA`.
     readonly deleted: readonly Span<Data>[],
     /// Data associated with the inserted content. Length adds up to
-    /// `this.toB - this.toA`.
+    /// `this.toB - this.fromB`.
     readonly inserted: readonly Span<Data>[]
   ) {}
 
