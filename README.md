@@ -132,7 +132,7 @@ An interface for encoding document nodes and characters into tokens for diffing.
 ### class BaseEncoder
 
 Base encoder that only considers node types and character codes.
-This encoder ignores marks and attributes. This is the default encoder when creating a `ChangeSet` class
+This encoder ignores marks and attributes. This is the default encoder when creating a `ChangeSet` class.
 
 
 ### class MarkEncoder
