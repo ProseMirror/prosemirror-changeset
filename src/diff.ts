@@ -10,11 +10,66 @@ function tokens(frag: Fragment, start: number, end: number, target: (number | st
     let from = Math.max(off, start), to = Math.min(endOff, end)
     if (from < to) {
       if (child.isText) {
-        for (let j = from; j < to; j++) target.push(child.text!.charCodeAt(j - off))
+        // For text nodes, include mark information in the token
+        let marks = child.marks;
+        if (marks.length) {
+          // Create a unique token for each character with its marks
+          for (let j = from; j < to; j++) {
+            let char = child.text!.charCodeAt(j - off);
+            let markStr = marks
+              .map((m) => {
+                let result = m.type.name;
+                if (Object.keys(m.attrs).length)
+                  result += ":" + JSON.stringify(m.attrs);
+                return result;
+              })
+              .sort()
+              .join(",");
+            // Use a string to represent the character with its marks
+            target.push(`${char}:${markStr}`);
+          }
+        } else {
+          // No marks, just push the character codes
+          for (let j = from; j < to; j++) target.push(child.text!.charCodeAt(j - off));
+        }
       } else if (child.isLeaf) {
-        target.push(child.type.name)
+        // For leaf nodes, include mark information in the node name
+        let nodeName = child.type.name;
+        let marks = child.marks;
+        if (marks.length) {
+          let markStr = marks
+            .map((m) => {
+              let result = m.type.name;
+              if (Object.keys(m.attrs).length)
+                result += ":" + JSON.stringify(m.attrs);
+              return result;
+            })
+            .sort()
+            .join(",");
+          target.push(`${nodeName}:${markStr}`);
+        } else {
+          target.push(nodeName);
+        }
       } else {
-        if (from == off) target.push(child.type.name)
+        // For non-leaf nodes
+        if (from == off) {
+          let nodeName = child.type.name;
+          let marks = child.marks;
+          if (marks.length) {
+            let markStr = marks
+              .map((m) => {
+                let result = m.type.name;
+                if (Object.keys(m.attrs).length)
+                  result += ":" + JSON.stringify(m.attrs);
+                return result;
+              })
+              .sort()
+              .join(",");
+            target.push(`${nodeName}:${markStr}`);
+          } else {
+            target.push(nodeName);
+          }
+        }
         tokens(child.content, Math.max(off + 1, from) - off - 1, Math.min(endOff - 1, to) - off - 1, target)
         if (to == endOff) target.push(-1)
       }
@@ -47,6 +102,17 @@ export function computeDiff(fragA: Fragment, fragB: Fragment, range: Change) {
   while (start < tokA.length && start < tokB.length && tokA[start] === tokB[start]) start++
   if (start == tokA.length && start == tokB.length) return []
   while (endA > start && endB > start && tokA[endA - 1] === tokB[endB - 1]) endA--, endB--
+
+  // Special case for node type changes - if we have different node types at the start
+  if (
+    start === 0 &&
+    typeof tokA[0] === "string" &&
+    typeof tokB[0] === "string" &&
+    tokA[0] !== tokB[0]
+  ) {
+    return [range.slice(0, endA, 0, endB)];
+  }
+
   // If the result is simple _or_ too big to cheaply compute, return
   // the remaining region as the diff
   if (endA == start || endB == start || (endA == endB && endA == start + 1))
@@ -71,7 +137,7 @@ export function computeDiff(fragA: Fragment, fragB: Fragment, range: Change) {
       // Found a match
       if (x >= lenA && y >= lenB) {
         // Trace back through the history to build up a set of changed ranges.
-        let diff = [], minSpan = minUnchanged(endA - start, endB - start)
+        let diff: Change<any>[] = [], minSpan = minUnchanged(endA - start, endB - start)
         // Used to add steps to a diff one at a time, back to front, merging
         // ones that are less than minSpan tokens apart
         let fromA = -1, toA = -1, fromB = -1, toB = -1

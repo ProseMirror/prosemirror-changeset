@@ -39,12 +39,20 @@ describe("computeDiff", () => {
      test(doc(p("abc"), p("def")), doc(p("ac"), p("d")),
           [2, 3, 2, 2], [7, 9, 6, 6]))
 
-  it("ignores marks", () =>
-     test(doc(p("abc")), doc(p(em("a"), strong("bc")))))
+  it("detects marks", () =>
+    test(doc(p("abc")), doc(p(em("a"), strong("bc"))), [1, 4, 1, 4]));
 
-  it("ignores marks in diffing", () =>
-     test(doc(p("abcdefghi")), doc(p(em("x"), strong("bc"), "defgh", em("y"))),
-          [1, 2, 1, 2], [9, 10, 9, 10]))
+  it("detects marks in diffing", () =>
+    test(
+      doc(p("abcdefghi")),
+      doc(p(em("a"), strong("bc"), "defgh", em("i"))),
+      [1, 4, 1, 4],
+      [9, 10, 9, 10]
+    ));
+
+  it("detects mark changes without text changes", () =>
+    test(doc(p("abc")), doc(p("a", em("b"), "c")), [2, 3, 2, 3]));
+
 
   it("ignores attributes", () =>
      test(doc(h1("x")), doc(h2("x"))))
