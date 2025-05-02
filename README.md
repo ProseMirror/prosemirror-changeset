@@ -138,7 +138,7 @@ This encoder ignores marks and attributes. This is the default encoder when crea
 ### class MarkEncoder
 
 Encoder that considers node types, character codes, and mark names.
-This encoder ignores mark an node attributes.
+This encoder ignores mark and node attributes.
 
 
 ### class AttributeEncoder
