@@ -39,13 +39,6 @@ export class BaseEncoder implements TokenEncoder {
  * This encoder ignores node and mark attributes.
  */
 export class MarkEncoder implements TokenEncoder {
-  private encodeMarks(marks: readonly Mark[]): string {
-    return marks
-      .map((m) => m.type.name)
-      .sort()
-      .join(",");
-  }
-
   encodeCharacter(char: number, node: Node): string | number {
     const marks = node.marks;
     if (!marks.length) return char;
@@ -61,6 +54,13 @@ export class MarkEncoder implements TokenEncoder {
 
     return `${nodeName}:${this.encodeMarks(marks)}`;
   }
+
+  private encodeMarks(marks: readonly Mark[]): string {
+    return marks
+      .map((m) => m.type.name)
+      .sort()
+      .join(",");
+  }
 }
 
 /**
@@ -72,18 +72,7 @@ export class AttributeEncoder implements TokenEncoder {
     const marks = node.marks;
     if (!marks.length) return char;
 
-    const markStr = marks
-      .map((m) => {
-        let result = m.type.name;
-        if (Object.keys(m.attrs).length) {
-          result += ":" + JSON.stringify(m.attrs);
-        }
-        return result;
-      })
-      .sort()
-      .join(",");
-
-    return `${char}:${markStr}`;
+    return `${char}:${this.encodeMarks(marks)}`;
   }
 
   encodeNode(node: Node): string {
@@ -98,7 +87,11 @@ export class AttributeEncoder implements TokenEncoder {
 
     if (!marks.length) return nodeStr;
 
-    const markStr = marks
+    return `${nodeStr}:${this.encodeMarks(marks)}`;
+  }
+
+  private encodeMarks(marks: readonly Mark[]): string {
+    return marks
       .map((m) => {
         let result = m.type.name;
         if (Object.keys(m.attrs).length) {
@@ -108,7 +101,5 @@ export class AttributeEncoder implements TokenEncoder {
       })
       .sort()
       .join(",");
-
-    return `${nodeStr}:${markStr}`;
   }
 }
