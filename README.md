@@ -67,6 +67,12 @@ in the past. It condenses a number of step maps down to a flat
 sequence of replacements, and simplifies replacments that
 partially undo themselves by comparing their content.
 
+ * **`constructor`**`: (config: {doc: Node, combine: fn(dataA: Data, dataB: Data) → Data, tokenEncoder?: TokenEncoder}, changes: readonly Change[]) => ChangeSet`: Create a changeset with the given base object and configuration.
+   The `combine` function is used to compare and combine metadata—it
+   should return null when metadata isn't compatible, and a combined
+   version for a merged range when it is. The `tokenEncoder` is used to determine how document nodes and characters
+   are encoded for comparison during diffing. If not provided, the default `BaseEncoder` is used.
+
  * **`changes`**`: readonly Change[]`\
    Replaced regions.
 
@@ -96,11 +102,11 @@ partially undo themselves by comparing their content.
    make sure the method is called on the old set and passed the new
    set. The returned positions will be in new document coordinates.
 
- * `static `**`create`**`<Data = any>(doc: Node, combine?: fn(dataA: Data, dataB: Data) → Data = (a, b) => a === b ? a : null as any) → ChangeSet`\
-   Create a changeset with the given base object and configuration.
-   The `combine` function is used to compare and combine metadata—it
-   should return null when metadata isn't compatible, and a combined
-   version for a merged range when it is.
+ * `static `**`create`**`<Data = any>(doc: Node, combine?: fn(dataA: Data, dataB: Data) → Data = (a, b) => a === b ? a : null as any, tokenEncoder?: TokenEncoder) → ChangeSet`\
+  Create a changeset with the given base object and configuration.
+  The `combine` function is used to compare and combine metadata—it
+  should return `nul`l` when metadata isn't compatible, and a combined
+  version for a merged range when it is.
 
 
  * **`simplifyChanges`**`(changes: readonly Change[], doc: Node) → Change[]`\
@@ -111,3 +117,31 @@ partially undo themselves by comparing their content.
    words (in the new document) they touch. An exception is made for
    single-character replacements.
 
+
+### interface TokenEncoder
+
+An interface for encoding document nodes and characters into tokens for diffing.
+
+ * **`encodeCharacter`**`(char: number, node: Node) → string | number`\
+   Encodes a character from a text node into a token.
+
+ * **`encodeNode`**`(node: Node) → string`\
+   Encodes a node into a token.
+
+
+### class BaseEncoder
+
+Base encoder that only considers node types and character codes.
+This encoder ignores marks and attributes. This is the default encoder when creating a `ChangeSet` class
+
+
+### class MarkEncoder
+
+Encoder that considers node types, character codes, and mark names.
+This encoder ignores mark an node attributes.
+
+
+### class AttributeEncoder
+
+Encoder that considers node types, character codes, mark names, and all attributes.
+This is the most detailed encoder, but also the least performant.

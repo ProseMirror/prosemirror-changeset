@@ -1,76 +1,42 @@
 import {Fragment} from "prosemirror-model"
 import {Change} from "./change"
+import {TokenEncoder} from "./token-encoder"
 
 // Convert the given range of a fragment to tokens, where node open
 // tokens are encoded as strings holding the node name, characters as
 // their character code, and node close tokens as -1.
-function tokens(frag: Fragment, start: number, end: number, target: (number | string)[]) {
+function tokens(
+  frag: Fragment,
+  start: number,
+  end: number,
+  target: (number | string)[],
+  encoder: TokenEncoder
+) {
   for (let i = 0, off = 0; i < frag.childCount; i++) {
     let child = frag.child(i), endOff = off + child.nodeSize
     let from = Math.max(off, start), to = Math.min(endOff, end)
     if (from < to) {
       if (child.isText) {
-        // For text nodes, include mark information in the token
-        let marks = child.marks;
-        if (marks.length) {
-          // Create a unique token for each character with its marks
-          for (let j = from; j < to; j++) {
-            let char = child.text!.charCodeAt(j - off);
-            let markStr = marks
-              .map((m) => {
-                let result = m.type.name;
-                if (Object.keys(m.attrs).length)
-                  result += ":" + JSON.stringify(m.attrs);
-                return result;
-              })
-              .sort()
-              .join(",");
-            // Use a string to represent the character with its marks
-            target.push(`${char}:${markStr}`);
-          }
-        } else {
-          // No marks, just push the character codes
-          for (let j = from; j < to; j++) target.push(child.text!.charCodeAt(j - off));
+        // For text nodes, encode each character
+        for (let j = from; j < to; j++) {
+          const char = child.text!.charCodeAt(j - off);
+          target.push(encoder.encodeCharacter(char, child));
         }
       } else if (child.isLeaf) {
-        // For leaf nodes, include mark information in the node name
-        let nodeName = child.type.name;
-        let marks = child.marks;
-        if (marks.length) {
-          let markStr = marks
-            .map((m) => {
-              let result = m.type.name;
-              if (Object.keys(m.attrs).length)
-                result += ":" + JSON.stringify(m.attrs);
-              return result;
-            })
-            .sort()
-            .join(",");
-          target.push(`${nodeName}:${markStr}`);
-        } else {
-          target.push(nodeName);
-        }
+        // For leaf nodes, encode the node
+        target.push(encoder.encodeNode(child));
       } else {
         // For non-leaf nodes
         if (from == off) {
-          let nodeName = child.type.name;
-          let marks = child.marks;
-          if (marks.length) {
-            let markStr = marks
-              .map((m) => {
-                let result = m.type.name;
-                if (Object.keys(m.attrs).length)
-                  result += ":" + JSON.stringify(m.attrs);
-                return result;
-              })
-              .sort()
-              .join(",");
-            target.push(`${nodeName}:${markStr}`);
-          } else {
-            target.push(nodeName);
-          }
+          target.push(encoder.encodeNode(child))
         }
-        tokens(child.content, Math.max(off + 1, from) - off - 1, Math.min(endOff - 1, to) - off - 1, target)
+        tokens(
+          child.content,
+          Math.max(off + 1, from) - off - 1,
+          Math.min(endOff - 1, to) - off - 1,
+          target,
+          encoder
+        )
         if (to == endOff) target.push(-1)
       }
     }
@@ -93,9 +59,14 @@ function minUnchanged(sizeA: number, sizeB: number) {
   return Math.min(15, Math.max(2, Math.floor(Math.max(sizeA, sizeB) / 10)))
 }
 
-export function computeDiff(fragA: Fragment, fragB: Fragment, range: Change) {
-  let tokA = tokens(fragA, range.fromA, range.toA, [])
-  let tokB = tokens(fragB, range.fromB, range.toB, [])
+export function computeDiff(
+  fragA: Fragment,
+  fragB: Fragment,
+  range: Change,
+  encoder: TokenEncoder
+) {
+  let tokA = tokens(fragA, range.fromA, range.toA, [], encoder);
+  let tokB = tokens(fragB, range.fromB, range.toB, [], encoder);
 
   // Scan from both sides to cheaply eliminate work
   let start = 0, endA = tokA.length, endB = tokB.length

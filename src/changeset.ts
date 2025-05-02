@@ -2,21 +2,39 @@ import {Node} from "prosemirror-model"
 import {StepMap} from "prosemirror-transform"
 import {computeDiff} from "./diff"
 import {Change, Span} from "./change"
+import {TokenEncoder, BaseEncoder, MarkEncoder, AttributeEncoder} from "./token-encoder"
 export {Change, Span}
 export {simplifyChanges} from "./simplify"
+export {TokenEncoder, BaseEncoder, MarkEncoder, AttributeEncoder}
 
 /// A change set tracks the changes to a document from a given point
 /// in the past. It condenses a number of step maps down to a flat
 /// sequence of replacements, and simplifies replacments that
 /// partially undo themselves by comparing their content.
 export class ChangeSet<Data = any> {
+
+  public config: {
+    doc: Node;
+    combine: (dataA: Data, dataB: Data) => Data;
+    tokenEncoder: TokenEncoder;
+  };
+
   /// @internal
   constructor(
-    /// @internal
-    readonly config: {doc: Node, combine: (dataA: Data, dataB: Data) => Data},
+    config: {
+      doc: Node;
+      combine?: (dataA: Data, dataB: Data) => Data;
+      tokenEncoder?: TokenEncoder;
+    },
     /// Replaced regions.
     readonly changes: readonly Change<Data>[]
-  ) {}
+  ) {
+    this.config = {
+      doc: config.doc,
+      combine: config.combine ?? ((a, b) => (a === b ? a : null as any)),
+      tokenEncoder: config.tokenEncoder || new BaseEncoder(),
+    }
+  }
 
   /// Computes a new changeset by adding the given step maps and
   /// metadata (either as an array, per-map, or as a single value to be
@@ -69,7 +87,7 @@ export class ChangeSet<Data = any> {
       if (change.fromA == change.toA || change.fromB == change.toB ||
           // Only look at changes that touch newly added changed ranges
           !newChanges.some(r => r.toB > change.fromB && r.fromB < change.toB)) continue
-      let diff = computeDiff(this.config.doc.content, newDoc.content, change)
+      let diff = computeDiff(this.config.doc.content, newDoc.content, change, this.config.tokenEncoder)
 
       // Fast path: If they are completely different, don't do anything
       if (diff.length == 1 && diff[0].fromB == 0 && diff[0].toB == change.toB - change.fromB)
@@ -135,8 +153,14 @@ export class ChangeSet<Data = any> {
   /// The `combine` function is used to compare and combine metadata—it
   /// should return null when metadata isn't compatible, and a combined
   /// version for a merged range when it is.
-  static create<Data = any>(doc: Node, combine: (dataA: Data, dataB: Data) => Data = (a, b) => a === b ? a : null as any) {
-    return new ChangeSet({combine, doc}, [])
+  /// The `tokenEncoder` is used to determine how document nodes and characters
+  /// are encoded for comparison during diffing.
+  static create<Data = any>(
+    doc: Node,
+    combine?: (dataA: Data, dataB: Data) => Data,
+    tokenEncoder?: TokenEncoder
+  ) {
+    return new ChangeSet({ combine, doc, tokenEncoder }, []);
   }
 
   /// Exported for testing @internal
