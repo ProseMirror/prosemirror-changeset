@@ -74,16 +74,6 @@ export function computeDiff(
   if (start == tokA.length && start == tokB.length) return []
   while (endA > start && endB > start && tokA[endA - 1] === tokB[endB - 1]) endA--, endB--
 
-  // Special case for node type changes - if we have different node types at the start
-  if (
-    start === 0 &&
-    typeof tokA[0] === "string" &&
-    typeof tokB[0] === "string" &&
-    tokA[0] !== tokB[0]
-  ) {
-    return [range.slice(0, endA, 0, endB)];
-  }
-
   // If the result is simple _or_ too big to cheaply compute, return
   // the remaining region as the diff
   if (endA == start || endB == start || (endA == endB && endA == start + 1))
