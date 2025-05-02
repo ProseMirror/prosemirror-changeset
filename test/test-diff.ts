@@ -1,7 +1,7 @@
 import ist from "ist"
 import {doc, p, em, strong, h1, h2} from "prosemirror-test-builder"
 import {Node} from "prosemirror-model"
-import {Span, Change, ChangeSet} from "prosemirror-changeset"
+import {Span, Change, ChangeSet, BaseEncoder} from "prosemirror-changeset"
 const {computeDiff} = ChangeSet
 
 describe("computeDiff", () => {
@@ -9,7 +9,8 @@ describe("computeDiff", () => {
     let diff = computeDiff(doc1.content, doc2.content,
                            new Change(0, doc1.content.size, 0, doc2.content.size,
                                       [new Span(doc1.content.size, 0)],
-                                      [new Span(doc2.content.size, 0)]))
+                                      [new Span(doc2.content.size, 0)]), 
+                                      new BaseEncoder())
     ist(JSON.stringify(diff.map(r => [r.fromA, r.toA, r.fromB, r.toB])), JSON.stringify(ranges))
   }
 
@@ -39,20 +40,12 @@ describe("computeDiff", () => {
      test(doc(p("abc"), p("def")), doc(p("ac"), p("d")),
           [2, 3, 2, 2], [7, 9, 6, 6]))
 
-  it("detects marks", () =>
-    test(doc(p("abc")), doc(p(em("a"), strong("bc"))), [1, 4, 1, 4]));
+  it("ignores marks", () =>
+     test(doc(p("abc")), doc(p(em("a"), strong("bc")))))
 
-  it("detects marks in diffing", () =>
-    test(
-      doc(p("abcdefghi")),
-      doc(p(em("a"), strong("bc"), "defgh", em("i"))),
-      [1, 4, 1, 4],
-      [9, 10, 9, 10]
-    ));
-
-  it("detects mark changes without text changes", () =>
-    test(doc(p("abc")), doc(p("a", em("b"), "c")), [2, 3, 2, 3]));
-
+  it("ignores marks in diffing", () =>
+     test(doc(p("abcdefghi")), doc(p(em("x"), strong("bc"), "defgh", em("y"))),
+          [1, 2, 1, 2], [9, 10, 9, 10]))
 
   it("ignores attributes", () =>
      test(doc(h1("x")), doc(h2("x"))))
