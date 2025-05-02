@@ -69,7 +69,7 @@ partially undo themselves by comparing their content.
 
  * **`constructor`**`: (config: {doc: Node, combine: fn(dataA: Data, dataB: Data) → Data, tokenEncoder?: TokenEncoder}, changes: readonly Change[]) => ChangeSet`: Create a changeset with the given base object and configuration.
    The `combine` function is used to compare and combine metadata—it
-   should return null when metadata isn't compatible, and a combined
+   should return `null` when metadata isn't compatible, and a combined
    version for a merged range when it is. The `tokenEncoder` is used to determine how document nodes and characters
    are encoded for comparison during diffing. If not provided, the default `BaseEncoder` is used.
 
@@ -102,11 +102,11 @@ partially undo themselves by comparing their content.
    make sure the method is called on the old set and passed the new
    set. The returned positions will be in new document coordinates.
 
- * `static `**`create`**`<Data = any>(doc: Node, combine?: fn(dataA: Data, dataB: Data) → Data = (a, b) => a === b ? a : null as any, tokenEncoder?: TokenEncoder) → ChangeSet`\
-  Create a changeset with the given base object and configuration.
-  The `combine` function is used to compare and combine metadata—it
-  should return `nul`l` when metadata isn't compatible, and a combined
-  version for a merged range when it is.
+ * `static `**`create`**`<Data = any>(doc: Node, combine?: fn(dataA: Data, dataB: Data) → Data = (a, b) => a === b ? a : `null` as any, tokenEncoder?: TokenEncoder) → ChangeSet`\
+   Create a changeset with the given base object and configuration.
+   The `combine` function is used to compare and combine metadata—it
+   should return `null` when metadata isn't compatible, and a combined
+   version for a merged range when it is.
 
 
  * **`simplifyChanges`**`(changes: readonly Change[], doc: Node) → Change[]`\
