@@ -1,22 +1,51 @@
-import {Fragment} from "prosemirror-model"
+import {Fragment, Node, Mark} from "prosemirror-model"
 import {Change} from "./change"
+
+/// A token encoder can be passed when creating a `ChangeSet` in order
+/// to influence the way the library runs its diffing algorithm. The
+/// encoder determines how document tokens (such as nodes and
+/// characters) are encoded and compared.
+///
+/// Note that both the encoding and the comparison may run a lot, and
+/// doing non-trivial work in these functions could impact
+/// performance.
+export interface TokenEncoder<T> {
+  /// Encode a given character, with the given marks applied.
+  encodeCharacter(char: number, marks: readonly Mark[]): T
+  /// Encode the start of a node or, if this is a leaf node, the
+  /// entire node.
+  encodeNodeStart(node: Node): T
+  /// Encode the end token for the given node. It is valid to encode
+  /// every end token in the same way.
+  encodeNodeEnd(node: Node): T
+  /// Compare the given tokens. Should return true when they count as
+  /// equal.
+  compareTokens(a: T, b: T): boolean
+}
+
+export const DefaultEncoder: TokenEncoder<number | string> = {
+  encodeCharacter: char => char,
+  encodeNodeStart: node => node.type.name,
+  encodeNodeEnd: () => -1,
+  compareTokens: (a, b) => a === b
+}
 
 // Convert the given range of a fragment to tokens, where node open
 // tokens are encoded as strings holding the node name, characters as
 // their character code, and node close tokens as -1.
-function tokens(frag: Fragment, start: number, end: number, target: (number | string)[]) {
+function tokens<T>(frag: Fragment, encoder: TokenEncoder<T>, start: number, end: number, target: T[]) {
   for (let i = 0, off = 0; i < frag.childCount; i++) {
     let child = frag.child(i), endOff = off + child.nodeSize
     let from = Math.max(off, start), to = Math.min(endOff, end)
     if (from < to) {
       if (child.isText) {
-        for (let j = from; j < to; j++) target.push(child.text!.charCodeAt(j - off))
+        for (let j = from; j < to; j++) target.push(encoder.encodeCharacter(child.text!.charCodeAt(j - off), child.marks))
       } else if (child.isLeaf) {
-        target.push(child.type.name)
+        target.push(encoder.encodeNodeStart(child))
       } else {
-        if (from == off) target.push(child.type.name)
-        tokens(child.content, Math.max(off + 1, from) - off - 1, Math.min(endOff - 1, to) - off - 1, target)
-        if (to == endOff) target.push(-1)
+        if (from == off) target.push(encoder.encodeNodeStart(child))
+        tokens(child.content, encoder, Math.max(off + 1, from) - off - 1, Math.min(endOff - 1, to) - off - 1, target)
+        if (to == endOff) target.push(encoder.encodeNodeEnd(child))
       }
     }
     off = endOff
@@ -38,15 +67,16 @@ function minUnchanged(sizeA: number, sizeB: number) {
   return Math.min(15, Math.max(2, Math.floor(Math.max(sizeA, sizeB) / 10)))
 }
 
-export function computeDiff(fragA: Fragment, fragB: Fragment, range: Change) {
-  let tokA = tokens(fragA, range.fromA, range.toA, [])
-  let tokB = tokens(fragB, range.fromB, range.toB, [])
+export function computeDiff(fragA: Fragment, fragB: Fragment, range: Change, encoder: TokenEncoder<any> = DefaultEncoder) {
+  let tokA = tokens(fragA, encoder, range.fromA, range.toA, [])
+  let tokB = tokens(fragB, encoder, range.fromB, range.toB, [])
 
   // Scan from both sides to cheaply eliminate work
   let start = 0, endA = tokA.length, endB = tokB.length
-  while (start < tokA.length && start < tokB.length && tokA[start] === tokB[start]) start++
+  let cmp = encoder.compareTokens
+  while (start < tokA.length && start < tokB.length && cmp(tokA[start], tokB[start])) start++
   if (start == tokA.length && start == tokB.length) return []
-  while (endA > start && endB > start && tokA[endA - 1] === tokB[endB - 1]) endA--, endB--
+  while (endA > start && endB > start && cmp(tokA[endA - 1], tokB[endB - 1])) endA--, endB--
   // If the result is simple _or_ too big to cheaply compute, return
   // the remaining region as the diff
   if (endA == start || endB == start || (endA == endB && endA == start + 1))
@@ -66,7 +96,7 @@ export function computeDiff(fragA: Fragment, fragB: Fragment, range: Change) {
     for (let diag = -size; diag <= size; diag += 2) {
       let next = frontier[diag + 1 + max], prev = frontier[diag - 1 + max]
       let x = next < prev ? prev : next + 1, y = x + diag
-      while (x < lenA && y < lenB && tokA[start + x] === tokB[start + y]) x++, y++
+      while (x < lenA && y < lenB && cmp(tokA[start + x], tokB[start + y])) x++, y++
       frontier[diag + max] = x
       // Found a match
       if (x >= lenA && y >= lenB) {

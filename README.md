@@ -96,11 +96,17 @@ partially undo themselves by comparing their content.
    make sure the method is called on the old set and passed the new
    set. The returned positions will be in new document coordinates.
 
- * `static `**`create`**`<Data = any>(doc: Node, combine?: fn(dataA: Data, dataB: Data) → Data = (a, b) => a === b ? a : null as any) → ChangeSet`\
+ * `static `**`create`**`<Data = any>(doc: Node, combine?: fn(dataA: Data, dataB: Data) → Data = (a, b) => a === b ? a : null as any, tokenEncoder?: TokenEncoder = DefaultEncoder) → ChangeSet`\
    Create a changeset with the given base object and configuration.
+
    The `combine` function is used to compare and combine metadata—it
    should return null when metadata isn't compatible, and a combined
    version for a merged range when it is.
+
+   When given, a token encoder determines how document tokens are
+   serialized and compared when diffing the content produced by
+   changes. The default is to just compare nodes by name and text
+   by character, ignoring marks and attributes.
 
 
  * **`simplifyChanges`**`(changes: readonly Change[], doc: Node) → Change[]`\
@@ -110,4 +116,31 @@ partially undo themselves by comparing their content.
    between them, they should be expanded to cover the entire set of
    words (in the new document) they touch. An exception is made for
    single-character replacements.
+
+
+### interface TokenEncoder`<T>`
+
+A token encoder can be passed when creating a `ChangeSet` in order
+to influence the way the library runs its diffing algorithm. The
+encoder determines how document tokens (such as nodes and
+characters) are encoded and compared.
+
+Note that both the encoding and the comparison may run a lot, and
+doing non-trivial work in these functions could impact
+performance.
+
+ * **`encodeCharacter`**`(char: number, marks: readonly Mark[]) → T`\
+   Encode a given character, with the given marks applied.
+
+ * **`encodeNodeStart`**`(node: Node) → T`\
+   Encode the start of a node or, if this is a leaf node, the
+   entire node.
+
+ * **`encodeNodeEnd`**`(node: Node) → T`\
+   Encode the end token for the given node. It is valid to encode
+   every end token in the same way.
+
+ * **`compareTokens`**`(a: T, b: T) → boolean`\
+   Compare the given tokens. Should return true when they count as
+   equal.
 

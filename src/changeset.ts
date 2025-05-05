@@ -1,9 +1,10 @@
 import {Node} from "prosemirror-model"
 import {StepMap} from "prosemirror-transform"
-import {computeDiff} from "./diff"
+import {computeDiff, TokenEncoder, DefaultEncoder} from "./diff"
 import {Change, Span} from "./change"
 export {Change, Span}
 export {simplifyChanges} from "./simplify"
+export {TokenEncoder}
 
 /// A change set tracks the changes to a document from a given point
 /// in the past. It condenses a number of step maps down to a flat
@@ -13,7 +14,11 @@ export class ChangeSet<Data = any> {
   /// @internal
   constructor(
     /// @internal
-    readonly config: {doc: Node, combine: (dataA: Data, dataB: Data) => Data},
+    readonly config: {
+      doc: Node,
+      combine: (dataA: Data, dataB: Data) => Data,
+      encoder: TokenEncoder<any>
+    },
     /// Replaced regions.
     readonly changes: readonly Change<Data>[]
   ) {}
@@ -69,7 +74,7 @@ export class ChangeSet<Data = any> {
       if (change.fromA == change.toA || change.fromB == change.toB ||
           // Only look at changes that touch newly added changed ranges
           !newChanges.some(r => r.toB > change.fromB && r.fromB < change.toB)) continue
-      let diff = computeDiff(this.config.doc.content, newDoc.content, change)
+      let diff = computeDiff(this.config.doc.content, newDoc.content, change, this.config.encoder)
 
       // Fast path: If they are completely different, don't do anything
       if (diff.length == 1 && diff[0].fromB == 0 && diff[0].toB == change.toB - change.fromB)
@@ -132,11 +137,21 @@ export class ChangeSet<Data = any> {
   }
 
   /// Create a changeset with the given base object and configuration.
+  ///
   /// The `combine` function is used to compare and combine metadata—it
   /// should return null when metadata isn't compatible, and a combined
   /// version for a merged range when it is.
-  static create<Data = any>(doc: Node, combine: (dataA: Data, dataB: Data) => Data = (a, b) => a === b ? a : null as any) {
-    return new ChangeSet({combine, doc}, [])
+  ///
+  /// When given, a token encoder determines how document tokens are
+  /// serialized and compared when diffing the content produced by
+  /// changes. The default is to just compare nodes by name and text
+  /// by character, ignoring marks and attributes.
+  static create<Data = any>(
+    doc: Node,
+    combine: (dataA: Data, dataB: Data) => Data = (a, b) => a === b ? a : null as any,
+    tokenEncoder: TokenEncoder<any> = DefaultEncoder
+  ) {
+    return new ChangeSet({combine, doc, encoder: tokenEncoder}, [])
   }
 
   /// Exported for testing @internal

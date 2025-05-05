@@ -26,3 +26,5 @@ it was made, or the step data necessary to invert it again.
 @ChangeSet
 
 @simplifyChanges
+
+@TokenEncoder
