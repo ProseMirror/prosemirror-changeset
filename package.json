@@ -29,11 +29,12 @@
   "devDependencies": {
     "@prosemirror/buildhelper": "^0.1.5",
     "prosemirror-model": "^1.0.0",
-    "prosemirror-test-builder": "^1.0.0"
+    "prosemirror-test-builder": "^1.0.0",
+    "builddocs": "^1.0.8"
   },
   "scripts": {
     "test": "pm-runtests",
     "prepare": "pm-buildhelper src/changeset.ts",
-    "build-readme": "FIXME"
+    "build-readme": "builddocs --format markdown --main src/README.md src/changeset.ts  > README.md"
   }
 }
