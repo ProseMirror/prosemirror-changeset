@@ -1,3 +1,9 @@
+## 2.3.0 (2025-05-05)
+
+### New features
+
+Change sets can now be passed a custom token encoder that controls the way changed content is diffed.
+
 ## 2.2.1 (2023-05-17)
 
 ### Bug fixes
