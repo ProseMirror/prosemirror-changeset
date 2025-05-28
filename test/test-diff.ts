@@ -63,4 +63,7 @@ describe("computeDiff", () => {
 
   it("can handle ambiguous diffs", () =>
      test(doc(p("abcbcd")), doc(p("abcd")), [4, 6, 4, 4]))
+
+  it("sees the difference between different closing tokens", () =>
+     test(doc(p("a")), doc(h1("oo")), [0, 3, 0, 4]))
 })

@@ -1,4 +1,4 @@
-import {Fragment, Node, Mark} from "prosemirror-model"
+import {Fragment, Node, NodeType, Mark} from "prosemirror-model"
 import {Change} from "./change"
 
 /// A token encoder can be passed when creating a `ChangeSet` in order
@@ -23,16 +23,24 @@ export interface TokenEncoder<T> {
   compareTokens(a: T, b: T): boolean
 }
 
+function typeID(type: NodeType) {
+  let cache: Record<string, number> = type.schema.cached.changeSetIDs || (type.schema.cached.changeSetIDs = Object.create(null))
+  let id = cache[type.name]
+  if (id == null) cache[type.name] = id = Object.keys(type.schema.nodes).indexOf(type.name) + 1
+  return id
+}
+
+// The default token encoder, which encodes node open tokens are
+// encoded as strings holding the node name, characters as their
+// character code, and node close tokens as negative numbers.
 export const DefaultEncoder: TokenEncoder<number | string> = {
   encodeCharacter: char => char,
   encodeNodeStart: node => node.type.name,
-  encodeNodeEnd: () => -1,
+  encodeNodeEnd: node => -typeID(node.type),
   compareTokens: (a, b) => a === b
 }
 
-// Convert the given range of a fragment to tokens, where node open
-// tokens are encoded as strings holding the node name, characters as
-// their character code, and node close tokens as -1.
+// Convert the given range of a fragment to tokens.
 function tokens<T>(frag: Fragment, encoder: TokenEncoder<T>, start: number, end: number, target: T[]) {
   for (let i = 0, off = 0; i < frag.childCount; i++) {
     let child = frag.child(i), endOff = off + child.nodeSize
