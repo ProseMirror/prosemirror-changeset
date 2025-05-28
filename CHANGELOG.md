@@ -1,3 +1,9 @@
+## 2.3.1 (2025-05-28)
+
+### Bug fixes
+
+Improve diffing to not treat closing tokens of different node types as the same token.
+
 ## 2.3.0 (2025-05-05)
 
 ### New features
