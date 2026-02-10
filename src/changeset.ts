@@ -154,6 +154,20 @@ export class ChangeSet<Data = any> {
     return new ChangeSet({combine, doc, encoder: tokenEncoder}, [])
   }
 
+  /// Create a changeset from a set of changes, using the given configuration.
+  static fromChanges<Data = any>(
+    doc: Node, 
+    changes: Change<Data>[], 
+    combine?: (dataA: Data, dataB: Data) => Data, 
+    encoder?: TokenEncoder<any>
+  ) {
+    return new ChangeSet({
+      doc: doc,
+      combine: combine ?? ((a, b) => a === b ? a : null as any),
+      encoder: encoder ?? DefaultEncoder
+    }, changes)
+  }
+
   /// Exported for testing @internal
   static computeDiff = computeDiff
 }
