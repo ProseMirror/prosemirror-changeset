@@ -168,4 +168,22 @@ export class Change<Data = any> {
       }
     }
   }
+
+  /// Deserialize a change from JSON format.
+  static fromJSON<Data>(json: ChangeJSON<Data>) {
+    return new Change(json.fromA, json.toA, json.fromB, json.toB,
+                      json.deleted.map(d => new Span(d.length, d.data)),
+                      json.inserted.map(d => new Span(d.length, d.data)))
+  }
+
+  /// Returns a JSON-serializeable object to represent this change.
+  toJSON(): ChangeJSON<Data> { return this }
+}
+
+/// JSON-serialized form of a change.
+export type ChangeJSON<Data> = {
+  fromA: number, toA: number,
+  fromB: number, toB: number,
+  deleted: readonly {length: number, data: Data}[],
+  inserted: readonly {length: number, data: Data}[]
 }

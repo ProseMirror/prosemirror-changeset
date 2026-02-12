@@ -1,8 +1,8 @@
 import {Node} from "prosemirror-model"
 import {StepMap} from "prosemirror-transform"
 import {computeDiff, TokenEncoder, DefaultEncoder} from "./diff"
-import {Change, Span} from "./change"
-export {Change, Span}
+import {Change, Span, ChangeJSON} from "./change"
+export {Change, Span, ChangeJSON}
 export {simplifyChanges} from "./simplify"
 export {TokenEncoder}
 
@@ -146,12 +146,18 @@ export class ChangeSet<Data = any> {
   /// serialized and compared when diffing the content produced by
   /// changes. The default is to just compare nodes by name and text
   /// by character, ignoring marks and attributes.
+  ///
+  /// To serialize a change set, you can store its document and
+  /// change array as JSON, and then pass the deserialized (via
+  /// [`Change.fromJSON`](#changes.Change^fromJSON)) set of changes
+  /// as fourth argument to `create` to recreate the set.
   static create<Data = any>(
     doc: Node,
     combine: (dataA: Data, dataB: Data) => Data = (a, b) => a === b ? a : null as any,
-    tokenEncoder: TokenEncoder<any> = DefaultEncoder
+    tokenEncoder: TokenEncoder<any> = DefaultEncoder,
+    changes: readonly Change<Data>[] = []
   ) {
-    return new ChangeSet({combine, doc, encoder: tokenEncoder}, [])
+    return new ChangeSet({combine, doc, encoder: tokenEncoder}, changes)
   }
 
   /// Exported for testing @internal

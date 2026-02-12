@@ -43,10 +43,16 @@ A replaced range with metadata associated with it.
    Data associated with the inserted content. Length adds up to
    `this.toB - this.fromB`.
 
+ * **`toJSON`**`() → ChangeJSON`\
+   Returns a JSON-serializeable object to represent this change.
+
  * `static `**`merge`**`<Data>(x: readonly Change[], y: readonly Change[], combine: fn(dataA: Data, dataB: Data) → Data) → readonly Change[]`\
    This merges two changesets (the end document of x should be the
    start document of y) into a single one spanning the start of x to
    the end of y.
+
+ * `static `**`fromJSON`**`<Data>(json: ChangeJSON) → Change`\
+   Deserialize a change from JSON format.
 
 
 ### class Span`<Data = any>`
@@ -96,7 +102,7 @@ partially undo themselves by comparing their content.
    make sure the method is called on the old set and passed the new
    set. The returned positions will be in new document coordinates.
 
- * `static `**`create`**`<Data = any>(doc: Node, combine?: fn(dataA: Data, dataB: Data) → Data = (a, b) => a === b ? a : null as any, tokenEncoder?: TokenEncoder = DefaultEncoder) → ChangeSet`\
+ * `static `**`create`**`<Data = any>(doc: Node, combine?: fn(dataA: Data, dataB: Data) → Data = (a, b) => a === b ? a : null as any, tokenEncoder?: TokenEncoder = DefaultEncoder, changes?: readonly Change[] = []) → ChangeSet`\
    Create a changeset with the given base object and configuration.
 
    The `combine` function is used to compare and combine metadata—it
@@ -107,6 +113,11 @@ partially undo themselves by comparing their content.
    serialized and compared when diffing the content produced by
    changes. The default is to just compare nodes by name and text
    by character, ignoring marks and attributes.
+
+   To serialize a change set, you can store its document and
+   change array as JSON, and then pass the deserialized (via
+   [`Change.fromJSON`](#changes.Change^fromJSON)) set of changes
+   as fourth argument to `create` to recreate the set.
 
 
  * **`simplifyChanges`**`(changes: readonly Change[], doc: Node) → Change[]`\
@@ -143,4 +154,22 @@ performance.
  * **`compareTokens`**`(a: T, b: T) → boolean`\
    Compare the given tokens. Should return true when they count as
    equal.
+
+
+### type ChangeJSON`<Data>`
+
+JSON-serialized form of a change.
+
+ * **`fromA`**`: number`
+
+ * **`toA`**`: number`
+
+ * **`fromB`**`: number`
+
+ * **`toB`**`: number`
+
+ * **`deleted`**`: readonly {length: number, data: Data}[]`
+
+ * **`inserted`**`: readonly {length: number, data: Data}[]`
+
 
