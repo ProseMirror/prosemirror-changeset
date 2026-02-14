@@ -1,3 +1,9 @@
+## 2.4.0 (2026-02-14)
+
+### New features
+
+`Change` objects can now be serialized to and deserialized from JSON, and `ChangeSet.create` allows you to pass in a set of changes.
+
 ## 2.3.1 (2025-05-28)
 
 ### Bug fixes
