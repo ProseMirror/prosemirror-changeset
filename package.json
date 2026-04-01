@@ -21,7 +21,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git://github.com/prosemirror/prosemirror-changeset.git"
+    "url": "git+https://code.haverbeke.berlin/prosemirror/prosemirror-changeset.git"
   },
   "dependencies": {
     "prosemirror-transform": "^1.0.0"
