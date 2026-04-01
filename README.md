@@ -1,3 +1,5 @@
+**This repository has moved to https://code.haverbeke.berlin/prosemirror/prosemirror-changeset**
+
 # prosemirror-changeset
 
 This is a helper module that can turn a sequence of document changes
